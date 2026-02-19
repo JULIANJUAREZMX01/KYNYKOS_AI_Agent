@@ -21,6 +21,8 @@ settings = Settings()
 # Global variables for cross-module access
 _agent_loop = None
 _session_manager = None
+_sentinel = None
+_explorer = None
 logger = get_logger(__name__)
 
 
@@ -62,7 +64,27 @@ async def lifespan(app: FastAPI):
         
         logger.info("✅ Agent loop initialized")
 
-        # Start Telegram bot (includes agent loop initialization)
+        # Start Sentinel (background log monitoring)
+        from app.core.sentinel import LogSentinel
+        sentinel = LogSentinel(settings)
+        global _sentinel
+        _sentinel = sentinel
+        # Add other logs from Julian's ecosystem if they exist
+        # sentinel.add_watch("../SAC/logs/error.log") 
+        sentinel_task = asyncio.create_task(sentinel.run())
+        logger.info("🐕 Sentinel mode active")
+
+        # Start Shadow Explorer (indexing)
+        from app.core.explorer import ShadowExplorer
+        explorer = ShadowExplorer(base_paths=[
+            Path("C:/Users/QUINTANA/sistemas"),
+            Path("C:/Users/QUINTANA/Downloads"),
+            Path("C:/Users/QUINTANA/Desktop"),
+        ])
+        global _explorer
+        _explorer = explorer
+        asyncio.create_task(explorer.rebuild_index())
+        logger.info("🐕 Shadow Explorer ready")
         logger.info("📱 Starting Telegram bot...")
         telegram_task = asyncio.create_task(start_telegram_bot(settings))
 
@@ -78,9 +100,10 @@ async def lifespan(app: FastAPI):
         logger.info("=" * 80)
 
         telegram_task.cancel()
+        sentinel_task.cancel()
         try:
-            await telegram_task
-        except asyncio.CancelledError:
+            await asyncio.gather(telegram_task, sentinel_task, return_exceptions=True)
+        except Exception:
             pass
 
         await stop_telegram_bot()

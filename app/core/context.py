@@ -22,12 +22,18 @@ class AgentContext:
     channel: str  # "telegram", "mcp", etc.
     messages: List[Message] = field(default_factory=list)
     state: Dict[str, Any] = field(default_factory=dict)
+    files: List[str] = field(default_factory=list)  # Paths of files to send
+    overdrive_mode: bool = False
     started_at: datetime = field(default_factory=datetime.utcnow)
     
     def add_message(self, role: str, content: str, metadata: Dict[str, Any] = None) -> None:
         """Add message to context"""
         msg = Message(role=role, content=content, metadata=metadata or {})
         self.messages.append(msg)
+    
+    def add_file(self, path: str) -> None:
+        """Mark a file to be sent to the user"""
+        self.files.append(path)
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization"""

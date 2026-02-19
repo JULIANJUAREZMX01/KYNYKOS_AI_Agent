@@ -1,70 +1,37 @@
-# Perfil de Usuario - QUINTANA
+# Perfil de Usuario - Julian Juarez (@JAJA.DEV)
 
-## Información Básica
+## Información Profesional
 
-- **Nombre completo**: Julian Juarez
-- **Nombre de trabajo**: QUINTANA
-- **Rol**: Desarrollador Senior / Arquitecto de Sistemas
-- **Ubicación**: México (UTC-6)
-- **Idioma**: Español
-- **Dispositivos**: PC Windows 10 (principal) + móvil
+- **Nombre completo**: Julian Alexander Juarez Alvarado
+- **Cargo**: Jefe de Sistemas @ CEDIS Cancún 427 (Tiendas Chedraui)
+- **Localidad**: Parque Logístico CaLoPark, Cancún, MX.
+- **Marca Personal**: JAJA.DEV / Diogenes.Dev
+- **Filosofía**: "Máquinas al servicio de analistas, no analistas al servicio de máquinas."
 
-## Contacto
+## Stack Tecnológico Dominante
 
-- **Telegram ID**: 8247886073
-- **Telegram Bot**: Nanobot (siempre activo)
+- **Bases de Datos**: IBM DB2, Manhattan WMS, SQL Avanzado (Repo Maestro).
+- **Core**: Python (Pandas, SQLAlchemy, FastAPI), JavaScript (React, Tailwind).
+- **Legacy**: AS/400, IBM i, Excel VBA.
+- **IA**: Claude Dev / Antigravity Agent expert.
 
-## Preferencias
+## Contexto de Proyectos
 
-### Comunicación
-- ☑️ Técnico
-- ☑️ Breve y conciso
-- ☑️ Explicaciones avanzadas (asumir expertise)
+1. **SAC (Sistema de Automatización Completa)**: Obra maestra de ROI (+3000%) con ahorro anual de $5.1M MXN.
+2. **MueveCancun (Nexus Prime)**: Ecosistema de transporte con motor WASM (Rust), PWA offline-first y 60x perf boost.
+3. **Validador v5.0**: Dashboard React + Python para validación preventiva de recibo en CEDIS.
+4. **CATALYST**: Proyecto de integración y análisis avanzado de datos logísticos.
+5. **Repositorio SQL Maestro**: Consolidación técnica de queries DB2 (Manhattan WMS).
 
-### Herramientas
-- **IDE**: VS Code
-- **Terminal**: PowerShell/Bash
-- **Git workflow**: Feature branches, PRs, commits claros
-- **LLM preferido**: Anthropic Claude (fallback: Groq)
+## Preferencias de Interacción
 
-## Proyectos Principales
+- **Nivel**: Arquitecto / Lead Developer.
+- **Autonomía**: Máxima. Prefiero que el bot proponga soluciones completas y ejecute scripts de validación por su cuenta.
+- **Frecuencia**: Reportes de log relevantes, no ruido innecesario.
+- **Acceso**: `C:/Users/QUINTANA/sistemas/` es tu patio de juegos.
 
-| Proyecto | Tipo | Estado |
-|----------|------|--------|
-| **CATALYST** | Activo | En desarrollo |
-| **JAJA.DEV** | Web | Producción |
-| **MueveCancun_PWA** | PWA | Activo |
-| **qdash** | Dashboard | Mantenimiento |
-| **SAC_V01_427_ADMJAJA** | Sistema atención cliente | Producción |
-| **NANOBOT** | Bot IA | Este agente |
-| **tools** | DevOps (kubectl, helm) | Utilities |
+## Notas de Operación
 
-## Stack Técnico
-
-- **Backend**: Python, Node.js, Rust
-- **Frontend**: React, Vue.js
-- **DevOps**: Docker, Kubernetes, Terraform
-- **Cloud**: AWS, Render, Google Cloud
-- **Bases de datos**: PostgreSQL, MongoDB, Redis
-
-## Especificaciones Nanobot
-
-- **Modelo LLM**: Groq (primary) + Claude Anthropic (fallback)
-- **Canal**: Telegram (sin bridge)
-- **Workspace**: `C:/Users/QUINTANA/sistemas/NANOBOT/workspace/`
-- **Datos**: Local + S3 backups
-- **Deployment**: Render (24/7)
-
-## Preferencias Especiales
-
-1. Respuestas en español **siempre**
-2. Mostrar output real de comandos
-3. Confirmar antes de operaciones destructivas
-4. No hacer commit/push sin pedido explícito
-5. Acceso completo a `C:/Users/QUINTANA/sistemas/`
-
-## Notas
-
-- Cambio de WhatsApp a Telegram (más simple, confiable)
-- Setup cloud en progreso (Fase 1 completada)
-- Bot debe estar activo 24/7 desde Render
+- El bot debe ser capaz de entender esquemas de WMS y queries complejas.
+- Foco en la **Fase 3: Cloud Deployment** pero manteniendo la potencia local.
+- Las respuestas deben ser en español, directas y con el estilo de "Ingeniero que resuelve".

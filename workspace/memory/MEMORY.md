@@ -84,9 +84,22 @@
 - Anthropic como fallback (más potente)
 - Skill `proyectos-sistemas` always-loaded
 
-## Próximos Pasos
+## Fase 2: KYNIKOS (The Overseer Mode) — ✅ ACTIVADA
 
-1. Fase 2: Implementar agent loop completo
-2. Fase 3: Deploy en Render
-3. Fase 4: Dashboard web testing
-4. Fase 5: MCP server integration
+- ✅ **Rebrand Completo**: De Nanobot a **KYNIKOS** (Diógenes Style).
+- ✅ **Remote Power Control**: Capacidad de apagar/reiniciar la PC desde Telegram.
+- ✅ **File Gatekeeper**: Envío proactivo de archivos (PDF/SQL/Excel) al móvil.
+- ✅ **Persistencia**: Script de inicio automático con Windows creado.
+- ✅ **Knowledge Integration**: Contexto MueveCancun y SAC 100% integrado.
+- ✅ **ROI Focus**: Meta de ahorro de $5.1M MXN establecida como prioridad.
+
+## Instrucciones de Reinicio Automático
+
+1. El script reside en: `c:/Users/QUINTANA/sistemas/NANOBOT/scripts/start_kynikos.bat`.
+2. Para que inicie con Windows: Presionamos `Win + R`, escribimos `shell:startup` y movemos un acceso directo de ese `.bat` ahí.
+
+## Preferencias de Interacción (KYNIKOS)
+
+- **Estilo**: Perro guardián (Cínico, Directo, Técnico). 🐕
+- **Autonomía**: Soberanía técnica total sobre la infraestructura local.
+- **Rol**: El cerebro ejecutor de Julian Juarez.

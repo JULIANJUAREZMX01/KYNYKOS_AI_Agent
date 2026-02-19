@@ -38,7 +38,7 @@ class AgentLoop:
             logger.info(f"Using provider: {provider.__class__.__name__}")
 
             # Prepare messages for LLM
-            messages = self._format_messages(ctx)
+            messages = await self._format_messages(ctx)
 
             # Call LLM
             logger.info(f"Calling LLM with {len(messages)} messages")
@@ -52,7 +52,7 @@ class AgentLoop:
             if tool_calls:
                 logger.info(f"Executing {len(tool_calls)} tool calls")
                 for tool_call in tool_calls:
-                    tool_result = await self.tool_executor.execute(tool_call)
+                    tool_result = await self.tool_executor.execute(tool_call, ctx)
                     ctx.add_message("tool", tool_result, metadata={"tool": tool_call.get("name")})
 
             # Add assistant response
@@ -67,12 +67,12 @@ class AgentLoop:
             ctx.add_message("assistant", error_msg, metadata={"error": True})
             return error_msg
 
-    def _format_messages(self, ctx: AgentContext) -> List[Dict[str, str]]:
+    async def _format_messages(self, ctx: AgentContext) -> List[Dict[str, str]]:
         """Format context messages for LLM API"""
         formatted = []
 
         # Add system prompt
-        system_prompt = self._build_system_prompt(ctx)
+        system_prompt = await self._build_system_prompt(ctx)
         formatted.append({"role": "system", "content": system_prompt})
 
         # Add conversation history
@@ -81,38 +81,45 @@ class AgentLoop:
 
         return formatted
 
-    def _build_system_prompt(self, ctx: AgentContext) -> str:
-        """Build system prompt with context information"""
-        prompt = """Eres Nanobot, asistente personal de desarrollo de QUINTANA (Julian Juarez).
+    async def _build_system_prompt(self, ctx: AgentContext) -> str:
+        """Build system prompt with context from workspace files"""
+        
+        # Base paths
+        workspace_path = Path("./workspace")
+        soul_file = workspace_path / "SOUL.md"
+        user_file = workspace_path / "USER.md"
+        agents_file = workspace_path / "AGENTS.md"
+        memory_file = workspace_path / "memory" / "MEMORY.md"
 
-## Tu Rol
-- Senior developer assistant
-- Especialista en: Python, JavaScript, DevOps, cloud deployment
-- Acceso a herramientas: shell, files, git, web
+        # Load content with fallbacks
+        soul = soul_file.read_text(encoding="utf-8") if soul_file.exists() else "Eres Nanobot, un asistente de IA."
+        user = user_file.read_text(encoding="utf-8") if user_file.exists() else f"Usuario: {getattr(ctx, 'user_id', 'Unknown')}"
+        agents = agents_file.read_text(encoding="utf-8") if agents_file.exists() else "Operar con eficiencia."
+        memory = memory_file.read_text(encoding="utf-8") if memory_file.exists() else ""
 
-## Comunicación
-- Siempre en español
-- Breve y al grano (máximo 4 líneas salvo que pida detalle)
-- Técnico y directo
-- Muestra output real de comandos
+        # Build composite prompt
+        prompt = f"""
+{soul}
 
-## Herramientas Disponibles
-Puedes usar:
-- execute_shell(command) → output
-- read_file(path) → content
-- write_file(path, content)
-- git_operation(cmd)
-- web_fetch(url)
+---
+# CONTEXTO DEL USUARIO
+{user}
 
-Llama herramientas cuando sea necesario para ayudar."""
+---
+# INSTRUCCIONES DE OPERACIÓN
+{agents}
 
-        # Add user context if available
-        if hasattr(ctx, 'user_id'):
-            prompt += f"\n\nUsuario: {ctx.user_id}"
-        if hasattr(ctx, 'channel'):
-            prompt += f"\nCanal: {ctx.channel}"
+---
+# MEMORIA PERSISTENTE RECIENTE
+{memory[:2000] if memory else "No hay memoria persistente grabada."}
 
-        return prompt
+---
+# ESTADO DEL CANAL
+Usuario ID: {getattr(ctx, 'user_id', 'N/A')}
+Canal: {getattr(ctx, 'channel', 'N/A')}
+Fecha/Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+"""
+        return prompt.strip()
 
     async def handle_tool_response(self, tool_response: str, ctx: AgentContext) -> str:
         """Handle tool response and generate follow-up"""
@@ -122,7 +129,7 @@ Llama herramientas cuando sea necesario para ayudar."""
 
             # Get provider and call LLM again
             provider = self.provider_manager.get_provider()
-            messages = self._format_messages(ctx)
+            messages = await self._format_messages(ctx)
 
             llm_response = await provider.call(messages)
             response_text = llm_response.get("text", "")

@@ -14,12 +14,22 @@ class Settings(BaseSettings):
     # LLM Providers
     groq_api_key: str
     anthropic_api_key: str
+    gemini_api_key: Optional[str] = None
+    gemini_googleai_studio_api_key: Optional[str] = None
+    
+    # Cloud Services
+    render_api_key: Optional[str] = None
+    jules_api_key: Optional[str] = None
+    desktop_commander_api_key: Optional[str] = None
     
     # AWS S3
     aws_access_key_id: Optional[str] = None
     aws_secret_access_key: Optional[str] = None
     aws_region: str = "us-east-1"
     s3_bucket: Optional[str] = None
+    
+    # Database
+    db2_connection_string: Optional[str] = None
     
     # App
     environment: str = "development"
