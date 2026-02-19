@@ -26,6 +26,7 @@ jobs:
   claude-code-action:
     name: Claude Code Action Official
     runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_dispatch'
     steps:
       - name: Claude Code Action Official
         uses: anthropics/claude-code-action@v1
@@ -34,7 +35,6 @@ jobs:
 
   claude-code-base:
     name: Claude Code Base Action (manual)
-    needs: claude-code-action
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
