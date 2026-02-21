@@ -17,6 +17,12 @@ class Settings(BaseSettings):
     gemini_api_key: Optional[str] = None
     gemini_googleai_studio_api_key: Optional[str] = None
     
+    # Twilio WhatsApp Bridge
+    twilio_account_sid: Optional[str] = None
+    twilio_auth_token: Optional[str] = None
+    twilio_whatsapp_from: Optional[str] = None  # e.g. +14155238886 (Twilio sandbox number)
+    twilio_whatsapp_to: Optional[str] = None    # e.g. +521XXXXXXXXXX (owner's number for alerts)
+
     # Cloud Services
     render_api_key: Optional[str] = None
     jules_api_key: Optional[str] = None
