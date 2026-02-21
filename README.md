@@ -1,6 +1,6 @@
 # Nanobot Cloud Deployment 🤖
 
-AI Assistant for QUINTANA - Deployed on Render with Telegram, Dashboard, MCP Server, and S3 Backups.
+AI Assistant for JAJA.DEV - Deployed on Render with Telegram, Dashboard, MCP Server, and S3 Backups.
 
 ## Architecture
 
