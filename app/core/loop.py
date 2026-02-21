@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+from pathlib import Path
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 
@@ -52,7 +53,11 @@ class AgentLoop:
             if tool_calls:
                 logger.info(f"Executing {len(tool_calls)} tool calls")
                 for tool_call in tool_calls:
-                    tool_result = await self.tool_executor.execute(tool_call, ctx)
+                    tool_result = await self.tool_executor.execute(
+                        tool_call.get("name", "unknown"),
+                        tool_call.get("args", {}),
+                        ctx,
+                    )
                     ctx.add_message("tool", tool_result, metadata={"tool": tool_call.get("name")})
 
             # Add assistant response
