@@ -1,20 +1,17 @@
-# Open Questions about Identity Mapping
+## Resolution Protocol
 
-## Identity Mapping
-- What is the distinction and relationship between `jaja.dev` and `JULIANJUAREZMX01`?
+### Open Questions and Resolutions
 
-## Non-Human CLIs
-- How do different non-human CLIs (Jules/Yules Gemini CLI, Claude CLI, Ollama local, GPT via Codex, VSCode CLI/Cline) interact with our system?
+1. **Identity Mapping**: Resolve the mapping between jaja.dev and JULIANJUAREZMX01.
+   - **Evidence Required**: Documentation for the mapping processes, including any relevant authentication mechanisms.
 
-## Governance of MASTER_CONTRACTS
-- Where does the governance of `MASTER_CONTRACTS` live?
+2. **Non-Human CLI Roles**: Clarify the roles of automated systems such as Jules (Gemini CLI).
+   - **Evidence Required**: Logs or configuration files illustrating the operational scope and permissions set for these roles.
 
-## ms_mesh_cycle.py
-- The local-only `ms_mesh_cycle.py` 12-step mesh cycle is not yet in git. What are the next actions to take regarding this file?
+3. **MASTER_CONTRACTS Location**: Confirm the precise location of MASTER_CONTRACTS within the repository.
+   - **Evidence Required**: A directory listing or documentation clarifying the hierarchy leading to the MASTER_CONTRACTS.
 
----
+4. **Local-Only ms_mesh_cycle.py Publishing**: Define the process for publishing ms_mesh_cycle.py as local-only.
+   - **Evidence Required**: Implementation guidelines along with any necessary revisions made to access controls. 
 
-## Next Actions
-- Publish `ms_mesh_cycle.py` to Git or paste its contents here.
-- Confirm where `MASTER_CONTRACTS` lives.
-- Define canonical identity and switcher rules.
+This section outlines the approach for handling ongoing inquiries efficiently, ensuring that all necessary conditions are met for a successful resolution.
