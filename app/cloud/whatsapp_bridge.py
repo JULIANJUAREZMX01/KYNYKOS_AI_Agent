@@ -44,15 +44,19 @@ def create_whatsapp_routes() -> APIRouter:
         NumMedia: int = Form(0),
     ) -> Response:
         """Handle incoming WhatsApp messages from Twilio"""
+        # Reject requests when Twilio credentials are not configured
+        if not _settings or not _settings.twilio_auth_token:
+            logger.warning("Twilio WhatsApp webhook called but credentials are not configured — request rejected")
+            return Response(content="Service unavailable", status_code=503)
+
         # Validate Twilio signature when auth token is available
-        if _settings and _settings.twilio_auth_token:
-            validator = RequestValidator(_settings.twilio_auth_token)
-            signature = request.headers.get("X-Twilio-Signature", "")
-            url = str(request.url)
-            form_data = dict(await request.form())
-            if not validator.validate(url, form_data, signature):
-                logger.warning("Invalid Twilio signature — request rejected")
-                return Response(content="Forbidden", status_code=403)
+        validator = RequestValidator(_settings.twilio_auth_token)
+        signature = request.headers.get("X-Twilio-Signature", "")
+        url = str(request.url)
+        form_data = dict(await request.form())
+        if not validator.validate(url, form_data, signature):
+            logger.warning("Invalid Twilio signature — request rejected")
+            return Response(content="Forbidden", status_code=403)
 
         # Strip "whatsapp:" prefix added by Twilio
         user_phone = From.replace("whatsapp:", "")
