@@ -12,6 +12,7 @@ from app.config import Settings
 from app.utils import get_logger
 from app.cloud.dashboard import create_dashboard_routes
 from app.cloud.telegram_bot import start_telegram_bot, stop_telegram_bot
+from app.cloud.whatsapp_bridge import create_whatsapp_routes, init_whatsapp_bridge
 from app.cloud.backup_service import BackupService
 from app.core.memory import Memory
 from app.cloud.sessions import SessionManager
@@ -87,6 +88,10 @@ async def lifespan(app: FastAPI):
         logger.info("🐕 Shadow Explorer ready")
         logger.info("📱 Starting Telegram bot...")
         telegram_task = asyncio.create_task(start_telegram_bot(settings))
+
+        # WhatsApp bridge (Twilio webhook-based — no polling needed)
+        init_whatsapp_bridge(settings)
+        logger.info("💬 WhatsApp bridge initialized")
 
         logger.info("=" * 80)
         logger.info("🟢 NANOBOT IS RUNNING — READY FOR MESSAGES")
@@ -174,6 +179,9 @@ async def health_check():
 
 # Register dashboard routes
 app.include_router(create_dashboard_routes(), prefix="/api")
+
+# Register WhatsApp webhook routes
+app.include_router(create_whatsapp_routes(), prefix="/api")
 
 
 # ============================================================================
