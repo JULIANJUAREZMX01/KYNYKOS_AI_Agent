@@ -1,6 +1,5 @@
 """WhatsApp bridge integration via Twilio for Nanobot"""
 
-from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Form, Request, Response
