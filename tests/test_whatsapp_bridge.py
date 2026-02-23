@@ -134,10 +134,9 @@ def test_send_whatsapp_reply_long_message(settings_with_twilio):
     long_text = "A" * 3300  # Exceeds 1600-char Twilio limit
     _send_whatsapp_reply("+521xxxxxxxxxx", long_text)
 
-    # Should have sent 3 chunks (1600 + 1600 + 100)
+    # Should have sent 3 chunks: 1600, 1600 and 100 characters
+    # (slices [0:1600], [1600:3200], [3200:3300] for a 3300-char message)
     assert mock_client.messages.create.call_count == 3
-
-
 # ---------------------------------------------------------------------------
 # create_whatsapp_routes
 # ---------------------------------------------------------------------------
