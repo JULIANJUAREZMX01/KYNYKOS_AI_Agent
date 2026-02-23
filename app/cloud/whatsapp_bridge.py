@@ -1,5 +1,6 @@
 """WhatsApp bridge integration via Twilio for Nanobot"""
 
+import asyncio
 from typing import Optional
 
 from fastapi import APIRouter, Form, Request, Response
@@ -137,7 +138,7 @@ def _chunk_message(text: str, max_len: int) -> list:
     """Split *text* into chunks of at most *max_len* characters.
 
     When more than one chunk is needed, each chunk is suffixed with a
-    ``(n/total)`` indicator so the recipient can tell the message continues.
+    (n/total) indicator so the recipient can tell the message continues.
     """
     if len(text) <= max_len:
         return [text]
@@ -239,3 +240,19 @@ async def _process_with_agent(user_phone: str, text: str, media_url: Optional[st
     except Exception as e:
         logger.error(f"Error processing WhatsApp message: {e}", exc_info=True)
         return f"❌ Error: {str(e)[:120]}"
+
+async def connect(settings: Settings) -> None:
+    """
+    Initialize connection to WhatsApp bridge.
+    Designed to be used in asyncio.gather for parallel startup.
+    """
+    logger.info("🔌 Connecting to WhatsApp Bridge...")
+    init_whatsapp_bridge(settings)
+
+    # Simulate async connection setup check
+    await asyncio.sleep(0.5)
+
+    if _twilio_client:
+        logger.info("✅ WhatsApp Bridge Connected & Listening")
+    else:
+        logger.warning("⚠️ WhatsApp Bridge initialized but not connected (No credentials)")

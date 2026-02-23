@@ -23,6 +23,28 @@ class AgentLoop:
         self.provider_manager = provider_manager
         self.tool_executor = ToolExecutor()
 
+        # Initialize Sentinel with ContractSettings (via settings)
+        from app.core.sentinel import LogSentinel
+        self.sentinel = LogSentinel(settings)
+        self.sentinel_task: Optional[asyncio.Task] = None
+
+    async def start(self):
+        """Start background tasks like Sentinel"""
+        if self.settings.contract_settings.sentinel_enabled and not self.sentinel_task:
+            self.sentinel_task = asyncio.create_task(self.sentinel.run())
+            logger.info("AgentLoop: Sentinel started via ContractSettings")
+
+    async def stop(self):
+        """Stop background tasks"""
+        if self.sentinel_task:
+            self.sentinel.stop()
+            try:
+                await self.sentinel_task
+            except asyncio.CancelledError:
+                pass
+            self.sentinel_task = None
+            logger.info("AgentLoop: Sentinel stopped")
+
     async def process_message(self, ctx: AgentContext) -> str:
         """
         Process user message and generate response

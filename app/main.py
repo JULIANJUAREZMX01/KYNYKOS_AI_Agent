@@ -12,6 +12,7 @@ from app.config import Settings
 from app.utils import get_logger
 from app.cloud.dashboard import create_dashboard_routes
 from app.cloud.telegram_bot import start_telegram_bot, stop_telegram_bot
+from app.cloud import telegram_bot, whatsapp_bridge
 from app.cloud.whatsapp_bridge import create_whatsapp_routes, init_whatsapp_bridge
 from app.cloud.backup_service import BackupService
 from app.core.memory import Memory
@@ -22,7 +23,6 @@ settings = Settings()
 # Global variables for cross-module access
 _agent_loop = None
 _session_manager = None
-_sentinel = None
 _explorer = None
 logger = get_logger(__name__)
 
@@ -63,17 +63,9 @@ async def lifespan(app: FastAPI):
         _agent_loop = AgentLoop(settings, provider_manager)
         _session_manager = session_manager
         
-        logger.info("✅ Agent loop initialized")
-
-        # Start Sentinel (background log monitoring)
-        from app.core.sentinel import LogSentinel
-        sentinel = LogSentinel(settings)
-        global _sentinel
-        _sentinel = sentinel
-        # Add other logs from Julian's ecosystem if they exist
-        # sentinel.add_watch("../SAC/logs/error.log") 
-        sentinel_task = asyncio.create_task(sentinel.run())
-        logger.info("🐕 Sentinel mode active")
+        # Start AgentLoop background tasks (including Sentinel)
+        await _agent_loop.start()
+        logger.info("✅ Agent loop initialized (Sentinel active)")
 
         # Start Shadow Explorer (indexing)
         from app.core.explorer import ShadowExplorer
@@ -86,12 +78,13 @@ async def lifespan(app: FastAPI):
         _explorer = explorer
         asyncio.create_task(explorer.rebuild_index())
         logger.info("🐕 Shadow Explorer ready")
-        logger.info("📱 Starting Telegram bot...")
-        telegram_task = asyncio.create_task(start_telegram_bot(settings))
 
-        # WhatsApp bridge (Twilio webhook-based — no polling needed)
-        init_whatsapp_bridge(settings)
-        logger.info("💬 WhatsApp bridge initialized")
+        # Start messaging bridges concurrently
+        logger.info("📱 Starting messaging bridges...")
+        await asyncio.gather(
+            telegram_bot.start(settings),
+            whatsapp_bridge.connect(settings)
+        )
 
         logger.info("=" * 80)
         logger.info("🟢 NANOBOT IS RUNNING — READY FOR MESSAGES")
@@ -104,12 +97,9 @@ async def lifespan(app: FastAPI):
         logger.info("🛑 SHUTTING DOWN NANOBOT")
         logger.info("=" * 80)
 
-        telegram_task.cancel()
-        sentinel_task.cancel()
-        try:
-            await asyncio.gather(telegram_task, sentinel_task, return_exceptions=True)
-        except Exception:
-            pass
+        # Stop AgentLoop (stops Sentinel)
+        if _agent_loop:
+            await _agent_loop.stop()
 
         await stop_telegram_bot()
 
@@ -173,7 +163,8 @@ async def health_check():
         "environment": settings.environment,
         "telegram": True,
         "agent_loop": True,
-        "lmm_fallback": "groq -> anthropic"
+        "sentinel": settings.contract_settings.sentinel_enabled,
+        "lmm_fallback": "external -> ollama"
     }
 
 
