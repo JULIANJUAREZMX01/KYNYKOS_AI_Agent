@@ -83,7 +83,7 @@ async def send_whatsapp_alert(message_text: str, settings: Settings) -> bool:
         _twilio_client.messages.create(
             from_=f"whatsapp:{settings.twilio_whatsapp_from}",
             to=f"whatsapp:{settings.twilio_whatsapp_to}",
-            body=f"🐕 *CENTINELA KYNIKOS ALERT*:\n\n{message_text}",
+            body=f"🐕 **CENTINELA KYNIKOS ALERT**:\n\n{message_text}",
         )
         return True
     except Exception as e:
