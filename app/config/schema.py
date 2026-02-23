@@ -1,5 +1,8 @@
 """Pydantic models for configuration"""
 
+import yaml
+from pathlib import Path
+from pydantic import Field, ConfigDict
 from pydantic_settings import BaseSettings
 from typing import Optional
 
@@ -37,12 +40,25 @@ class Settings(BaseSettings):
     # Database
     db2_connection_string: Optional[str] = None
     
+    # LLM Router
+    llm_config_path: str = Field(
+        default="app/config/llm_config.yaml",
+        validation_alias="LLM_CONFIG_PATH"
+    )
+
     # App
     environment: str = "development"
     log_level: str = "INFO"
     port: int = 8000
     host: str = "0.0.0.0"
-    
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
+
+    @property
+    def llm_providers(self):
+        """Load LLM provider config"""
+        config_path = Path(self.llm_config_path)
+        if config_path.exists():
+            with open(config_path) as f:
+                return yaml.safe_load(f).get("llm_providers", {})
+        return {}
+
+    model_config = ConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
