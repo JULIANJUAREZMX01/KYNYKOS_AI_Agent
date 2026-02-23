@@ -36,6 +36,7 @@ class LogSentinel:
         """Main loop for log monitoring"""
         self.is_running = True
         from app.cloud.telegram_bot import send_alert
+        from app.cloud.whatsapp_bridge import send_whatsapp_alert
         
         while self.is_running:
             for path_str, last_pos in list(self.watch_list.items()):
@@ -62,9 +63,10 @@ class LogSentinel:
                         # Analyze lines
                         for line in new_lines:
                             if any(trigger in line.upper() for trigger in ["ERROR", "CRITICAL", "EXCEPTION", "FAILED"]):
-                                # Send alert!
+                                # Send alert to all configured channels
                                 message = f"Fallo detectado en {path.name}:\n`{line.strip()[:200]}`"
                                 await send_alert(message, self.settings)
+                                await send_whatsapp_alert(message, self.settings)
                                 
                 except Exception as e:
                     # Don't use logger.error here as it might trigger a loop if watching kynikos.log

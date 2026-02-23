@@ -758,8 +758,11 @@ class ToolExecutor:
             async def _alarm_task():
                 await asyncio.sleep(wait_seconds)
                 from app.cloud.telegram_bot import send_alert
+                from app.cloud.whatsapp_bridge import send_whatsapp_alert
                 from app.main import settings
-                await send_alert(f"🚨 **ALERTA PROGRAMADA**: {reason}\n\nEs hora de actuar, Julian.", settings)
+                alert_msg = f"🚨 **ALERTA PROGRAMADA**: {reason}\n\nEs hora de actuar, Julian."
+                await send_alert(alert_msg, settings)
+                await send_whatsapp_alert(alert_msg, settings)
                 # Also try to speak on PC if near
                 await self._system_speak({"text": f"Escucha Julian, es hora del {reason}"})
 
