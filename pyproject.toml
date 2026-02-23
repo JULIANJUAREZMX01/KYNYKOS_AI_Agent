@@ -1,21 +1,10 @@
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
-
-[project]
-name = "nanobot-cloud"
-version = "0.1.0"
-description = "Nanobot AI Assistant - Cloud Deployment"
-authors = [{name = "Julian Juarez (QUINTANA)", email = "dev@quintana.local"}]
-requires-python = ">=3.11"
-
 [tool.poetry]
-name = "nanobot-cloud"
-version = "0.1.0"
-description = "Nanobot AI Assistant - Cloud Deployment with Telegram, MCP, Dashboard"
-authors = ["Julian Juarez <dev@quintana.local>"]
-license = "MIT"
-package-mode = false
+name = "kynykos-ai-agent"
+version = "0.2.0"
+description = "KynycOS AI Operating System"
+authors = ["JULIANJUAREZMX01"]
+readme = "README.md"
+packages = [{include = "app"}]
 
 [tool.poetry.dependencies]
 python = "^3.11"
@@ -35,25 +24,34 @@ tenacity = "^8.2.3"
 loguru = "^0.7.2"
 mcp = ">=0.5.0"
 twilio = "^9.0.0"
+python = "^3.12"
+fastapi = "^0.115.0"
+uvicorn = {extras = ["standard"], version = "^0.32.0"}
+python-telegram-bot = "^21.0"
+groq = "^0.11.0"
+anthropic = "^0.36.0"
+pydantic-settings = "^2.5.0"
+loguru = "^0.7.0"
+tenacity = "^9.0.0"
+boto3 = "^1.34.0"
+httpx = "^0.27.0"
+pyodbc = "^5.1.0"
+qrcode = {extras = ["pil"], version = "^7.4.0"}
+googletrans = "^4.0.0rc1"
+gTTS = "^2.5.0"
+Pillow = "^10.0.0"
+python-multipart = "^0.0.12"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^7.4.3"
-pytest-asyncio = "^0.21.1"
-black = "^23.11.0"
-ruff = "^0.1.8"
-mypy = "^1.7.0"
-pytest-cov = "^4.1.0"
+pytest = "^8.0.0"
+pytest-asyncio = "^0.24.0"
+pytest-mock = "^3.14.0"
 
-[tool.black]
-line-length = 100
-target-version = ['py311']
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
 
-[tool.ruff]
-line-length = 100
-target-version = "py311"
-select = ["E", "F", "W", "I"]
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
 
-[tool.mypy]
-python_version = "3.11"
-warn_return_any = true
-warn_unused_configs = true

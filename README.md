@@ -1,6 +1,6 @@
 # Nanobot Cloud Deployment 🤖
 
-AI Assistant for QUINTANA - Deployed on Render with Telegram, Dashboard, MCP Server, and S3 Backups.
+AI Assistant for JAJA.DEV - Deployed on Render with Telegram, Dashboard, MCP Server, and S3 Backups.
 
 ## Architecture
 
@@ -99,6 +99,49 @@ NANOBOT/
 ├── docker-compose.yml       # Local development
 └── render.yaml              # Render deployment config
 ```
+
+#IN STAGE#
+PowerShell 7 (specifically v7.5.x as of early 2026) is the modern, cross-platform evolution of the shell you likely know from Windows. While Windows PowerShell 5.1 is the "built-in" version that remains for legacy compatibility, PowerShell 7 is built on .NET 8/9, making it significantly faster and capable of running on Linux and macOS.
+Since you're orchestrating complex systems, PowerShell 7 is a massive upgrade for your workflow—especially for handling high-concurrency tasks and cross-platform automation.
+Why PowerShell 7 Matters for Your Stack
+Parallel Execution: The ForEach-Object -Parallel cmdlet allows you to run script blocks in parallel without manually managing threads or runspaces.
+Cross-Platform: Since it runs on .NET, your scripts can move between your Windows nodes (VANGUARD) and Linux environments without rewriting logic.
+Modern Operators: It introduces "quality of life" operators found in C# and Rust, such as:
+Pipeline Chain: && and || for conditional execution.
+Ternary: $a > $b ? "Greater" : "Lesser"
+Null Coalescing: ?? and ??=
+Performance: In many string processing and JSON parsing tasks, PowerShell 7 can be up to 50x faster than 5.1.
+Key Comparisons
+PowerShell 7 (specifically v7.5.x as of early 2026) is the modern, cross-platform evolution of the shell you likely know from Windows. While Windows PowerShell 5.1 is the "built-in" version that remains for legacy compatibility, PowerShell 7 is built on .NET 8/9, making it significantly faster and capable of running on Linux and macOS.
+Since you're orchestrating complex systems, PowerShell 7 is a massive upgrade for your workflow—especially for handling high-concurrency tasks and cross-platform automation.
+Why PowerShell 7 Matters for Your Stack
+Parallel Execution: The ForEach-Object -Parallel cmdlet allows you to run script blocks in parallel without manually managing threads or runspaces.
+Cross-Platform: Since it runs on .NET, your scripts can move between your Windows nodes (VANGUARD) and Linux environments without rewriting logic.
+Modern Operators: It introduces "quality of life" operators found in C# and Rust, such as:
+Pipeline Chain: && and || for conditional execution.
+Ternary: $a > $b ? "Greater" : "Lesser"
+Null Coalescing: ?? and ??=
+Performance: In many string processing and JSON parsing tasks, PowerShell 7 can be up to 50x faster than 5.1.
+Key Comparisons
+Feature Windows PowerShell 5.1 PowerShell 7.x
+Runtime .NET Framework 4.5+ .NET 8.0 / 9.0 (.NET Core)
+Platform Windows Only Windows, Linux, macOS
+Executable powershell.exe pwsh.exe (or pwsh on Unix)
+Parallelism No native Parallel parameter Native ForEach-Object -Parallel
+SSH Remoting WinRM Only WinRM and SSH
+Default Pre-installed on Windows Side-by-side install
+Quick Deployment (Windows/VANGUARD)
+Since you prefer clean, functional orchestration, I recommend installing via WinGet to keep it updated automatically:
+# Install PowerShell 7
+winget install --id Microsoft.PowerShell --source winget
+Quick Deployment (Windows/VANGUARD)
+Since you prefer clean, functional orchestration, I recommend installing via WinGet to keep it updated automatically:
+# Install PowerShell 7
+winget install --id Microsoft.PowerShell --source winget
+Direct Migration Note
+Because you are managing nodes like CATALYST and SACITY, you should know that PowerShell 7 includes a Windows Compatibility Layer. If you import a module that requires 5.1 (like certain legacy Active Directory or older industrial SDKs), PS7 will actually spin up a hidden 5.1 process to run those commands for you transparently.
+Would you like me to help you refactor any of your existing automation scripts from the KynicOS repository to use PS7's parallel processing?
+INSTAGE#
 
 ## API Endpoints
 

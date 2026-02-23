@@ -23,76 +23,99 @@ SAFE_BASE_PATHS = [
 class ToolExecutor:
     """Execute tools safely"""
 
-    async def execute(self, tool_call: Dict[str, Any], ctx: AgentContext) -> str:
-        """Execute tool call"""
-        name = tool_call.get("name", "unknown")
-        args = tool_call.get("args", {})
+    def __init__(self, workspace_path: str = "./workspace"):
+        self.workspace_path = Path(workspace_path).resolve()
+        # Registry mapping tool names to their handler methods (populated after init)
+        self.tools: Dict[str, Any] = {}
+        self._register_tools()
 
+    def _register_tools(self) -> None:
+        """Populate the tools registry"""
+        self.tools = {
+            "execute_shell": self._execute_shell,
+            "read_file": self._read_file,
+            "write_file": self._write_file,
+            "list_files": self._list_files,
+            "git_operation": self._git_operation,
+            "web_fetch": self._web_fetch,
+            "search_code": self._search_code,
+            "list_projects": self._list_projects,
+            "system_control": self._system_control,
+            "send_to_mobile": self._send_to_mobile,
+            "get_system_stats": self._get_system_stats,
+            "network_scan": self._network_scan,
+            "register_log_watch": self._register_log_watch,
+            "execute_sql": self._execute_sql,
+            "backup_to_cloud": self._backup_to_cloud,
+            "intelligent_search": self._intelligent_search,
+            "rebuild_index": self._rebuild_index,
+            "web_search": self._web_search,
+            "render_api_query": self._render_api_query,
+            "muevecancun_listener": self._muevecancun_listener,
+            "take_screenshot": self._take_screenshot,
+            "manage_processes": self._manage_processes,
+            "self_repair": self._self_repair,
+            "activate_overdrive": self._activate_overdrive,
+            "generate_qr": self._generate_qr,
+            "translate_text": self._translate_text,
+            "text_to_speech": self._text_to_speech,
+            "set_alarm": self._set_alarm,
+            "system_speak": self._system_speak,
+            "calculate": self._calculate,
+            "get_datetime": self._get_datetime,
+        }
+
+    async def execute(self, name: str, args: Dict[str, Any], ctx: AgentContext) -> str:
+        """Execute a tool by name"""
         try:
             logger.info(f"Executing tool: {name}")
+            handler = self.tools.get(name)
+            if handler is None:
+                return f"❌ Tool not found: {name}"
 
-            if name == "execute_shell":
-                return await self._execute_shell(args, ctx)
-            elif name == "read_file":
-                return await self._read_file(args, ctx)
-            elif name == "write_file":
-                return await self._write_file(args, ctx)
-            elif name == "git_operation":
-                return await self._git_operation(args, ctx)
-            elif name == "web_fetch":
-                return await self._web_fetch(args)
-            elif name == "search_code":
-                return await self._search_code(args, ctx)
-            elif name == "list_projects":
-                return await self._list_projects(args)
-            elif name == "system_control":
-                return await self._system_control(args)
-            elif name == "send_to_mobile":
-                return await self._send_to_mobile(args, ctx)
-            elif name == "get_system_stats":
-                return await self._get_system_stats()
-            elif name == "network_scan":
-                return await self._network_scan(args)
-            elif name == "register_log_watch":
-                return await self._register_log_watch(args)
-            elif name == "execute_sql":
-                return await self._execute_sql(args)
-            elif name == "backup_to_cloud":
-                return await self._backup_to_cloud(args)
-            elif name == "intelligent_search":
-                return await self._intelligent_search(args)
-            elif name == "rebuild_index":
-                return await self._rebuild_index()
-            elif name == "web_search":
-                return await self._web_search(args)
-            elif name == "render_api_query":
-                return await self._render_api_query(args)
-            elif name == "muevecancun_listener":
-                return await self._muevecancun_listener(args)
-            elif name == "take_screenshot":
-                return await self._take_screenshot(ctx)
-            elif name == "manage_processes":
-                return await self._manage_processes(args)
-            elif name == "self_repair":
-                return await self._self_repair(args)
-            elif name == "activate_overdrive":
-                return await self._activate_overdrive(args, ctx)
-            elif name == "generate_qr":
-                return await self._generate_qr(args, ctx)
-            elif name == "translate_text":
-                return await self._translate_text(args)
-            elif name == "text_to_speech":
-                return await self._text_to_speech(args, ctx)
-            elif name == "set_alarm":
-                return await self._set_alarm(args, ctx)
-            elif name == "system_speak":
-                return await self._system_speak(args)
+            # Handlers that take only args (no ctx)
+            no_ctx_tools = {
+                "web_fetch", "list_projects", "get_system_stats",
+                "network_scan", "register_log_watch", "execute_sql",
+                "backup_to_cloud", "intelligent_search", "rebuild_index",
+                "web_search", "render_api_query", "muevecancun_listener",
+                "system_speak", "calculate", "get_datetime",
+                "git_operation", "search_code", "system_control",
+                "manage_processes", "self_repair", "translate_text",
+            }
+            # Handlers that take no arguments at all
+            no_arg_tools = {"get_system_stats", "rebuild_index"}
+            # Handlers that take only ctx (no args)
+            ctx_only_tools = {"take_screenshot"}
+
+            if name in ctx_only_tools:
+                return await handler(ctx)
+            elif name in no_arg_tools:
+                return await handler()
+            elif name in no_ctx_tools:
+                return await handler(args)
             else:
-                return f"❌ Herramienta desconocida: {name}"
+                return await handler(args, ctx)
 
         except Exception as e:
             logger.error(f"Tool error ({name}): {e}")
             return f"❌ Error en {name}: {str(e)[:200]}"
+
+    # ------------------------------------------------------------------ #
+    # Public convenience methods (used directly in tests)                 #
+    # ------------------------------------------------------------------ #
+
+    async def read_file(self, args: Dict[str, Any], ctx: AgentContext) -> str:
+        """Public wrapper for _read_file"""
+        return await self._read_file(args, ctx)
+
+    async def write_file(self, args: Dict[str, Any], ctx: AgentContext) -> str:
+        """Public wrapper for _write_file"""
+        return await self._write_file(args, ctx)
+
+    async def list_files(self, args: Dict[str, Any], ctx: AgentContext) -> str:
+        """Public wrapper for _list_files"""
+        return await self._list_files(args, ctx)
 
     async def _execute_shell(self, args: Dict[str, Any], ctx: AgentContext) -> str:
         """Execute shell command safely"""
@@ -135,14 +158,18 @@ class ToolExecutor:
             return "❌ Ruta vacía"
 
         try:
-            file_path = Path(path).resolve()
+            raw = Path(path)
+            overdrive = ctx and getattr(ctx, 'overdrive_mode', False)
+            if raw.is_absolute() and not overdrive:
+                return "❌ Acceso denegado: rutas absolutas no permitidas sin OVERDRIVE"
+            file_path = (self.workspace_path / raw).resolve() if not raw.is_absolute() else raw.resolve()
 
             # Security check
             if not self._is_safe_path(file_path, ctx):
                 return f"❌ Acceso denegado: fuera de directorio permitido"
 
             if not file_path.exists():
-                return f"❌ Archivo no existe: {path}"
+                return f"❌ File not found: {path}"
 
             if file_path.is_dir():
                 return f"❌ Es directorio, no archivo: {path}"
@@ -162,7 +189,11 @@ class ToolExecutor:
             return "❌ Ruta vacía"
 
         try:
-            file_path = Path(path).resolve()
+            raw = Path(path)
+            overdrive = ctx and getattr(ctx, 'overdrive_mode', False)
+            if raw.is_absolute() and not overdrive:
+                return "❌ Acceso denegado: rutas absolutas no permitidas sin OVERDRIVE"
+            file_path = (self.workspace_path / raw).resolve() if not raw.is_absolute() else raw.resolve()
 
             # Security check
             if not self._is_safe_path(file_path, ctx):
@@ -172,10 +203,46 @@ class ToolExecutor:
             file_path.parent.mkdir(parents=True, exist_ok=True)
 
             await asyncio.to_thread(file_path.write_text, content, encoding="utf-8")
-            return f"✅ Archivo escrito: {path} ({len(content)} bytes)"
+            return f"✅ File written: {path} ({len(content)} bytes)"
 
         except Exception as e:
             return f"❌ Error escribiendo {path}: {str(e)}"
+
+    async def _list_files(self, args: Dict[str, Any], ctx: AgentContext) -> str:
+        """List files in a directory safely"""
+        directory = args.get("directory", ".").strip()
+
+        try:
+            raw = Path(directory)
+            overdrive = ctx and getattr(ctx, 'overdrive_mode', False)
+            if raw.is_absolute() and not overdrive:
+                return "❌ Acceso denegado: rutas absolutas no permitidas sin OVERDRIVE"
+            dir_path = (self.workspace_path / raw).resolve() if not raw.is_absolute() else raw.resolve()
+
+            # Security check
+            if not self._is_safe_path(dir_path, ctx):
+                return "❌ Acceso denegado: fuera de directorio permitido"
+
+            if not dir_path.exists():
+                return f"❌ Directorio no encontrado: {directory}"
+
+            if not dir_path.is_dir():
+                return f"❌ No es un directorio: {directory}"
+
+            entries = sorted(dir_path.iterdir(), key=lambda p: (p.is_file(), p.name))
+            if not entries:
+                return f"📂 Directory is empty: {directory}"
+
+            lines = []
+            for entry in entries:
+                icon = "📄" if entry.is_file() else "📁"
+                size = f" ({entry.stat().st_size} B)" if entry.is_file() else ""
+                lines.append(f"{icon} {entry.name}{size}")
+
+            return f"📂 **{directory}** ({len(entries)} elementos):\n" + "\n".join(lines)
+
+        except Exception as e:
+            return f"❌ Error listando {directory}: {str(e)}"
 
     async def _git_operation(self, args: Dict[str, Any]) -> str:
         """Execute git operation safely"""
@@ -784,6 +851,74 @@ class ToolExecutor:
         except Exception as e:
             return f"❌ Error en habla local: {e}"
 
+    async def _calculate(self, args: Dict[str, Any]) -> str:
+        """Safely evaluate a mathematical expression using AST"""
+        import ast
+        import operator
+
+        expression = args.get("expression", "").strip()
+        if not expression:
+            return "❌ Expresión matemática vacía."
+
+        # Supported operators
+        _ops = {
+            ast.Add: operator.add,
+            ast.Sub: operator.sub,
+            ast.Mult: operator.mul,
+            ast.Div: operator.truediv,
+            ast.Mod: operator.mod,
+            ast.Pow: operator.pow,
+            ast.USub: operator.neg,
+            ast.UAdd: operator.pos,
+        }
+
+        def _eval(node):
+            if isinstance(node, ast.Expression):
+                return _eval(node.body)
+            elif isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+                return node.value
+            elif isinstance(node, ast.BinOp) and type(node.op) in _ops:
+                return _ops[type(node.op)](_eval(node.left), _eval(node.right))
+            elif isinstance(node, ast.UnaryOp) and type(node.op) in _ops:
+                return _ops[type(node.op)](_eval(node.operand))
+            else:
+                raise ValueError(f"Operación no permitida: {type(node).__name__}")
+
+        try:
+            tree = ast.parse(expression, mode="eval")
+            result = _eval(tree)
+            return f"🧮 **Resultado**: `{expression}` = **{result}**"
+        except ZeroDivisionError:
+            return "❌ División entre cero."
+        except (ValueError, TypeError, SyntaxError) as e:
+            return f"❌ Error calculando `{expression}`: {str(e)}"
+
+    async def _get_datetime(self, args: Dict[str, Any]) -> str:
+        """Return current date and time information"""
+        from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+        tz_name = args.get("timezone", "America/Cancun").strip()
+        fmt = args.get("format", "%Y-%m-%d %H:%M:%S %Z")
+
+        try:
+            tz = ZoneInfo(tz_name)
+        except (ZoneInfoNotFoundError, KeyError):
+            tz = ZoneInfo("UTC")
+            tz_name = "UTC (zona inválida, usando UTC)"
+
+        from datetime import datetime as dt
+        now = dt.now(tz=tz)
+        weekdays_es = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+        day_name = weekdays_es[now.weekday()]
+
+        return (
+            f"🕐 **Fecha y Hora Actual**\n"
+            f"- Zona: {tz_name}\n"
+            f"- Fecha: {now.strftime('%Y-%m-%d')} ({day_name})\n"
+            f"- Hora: {now.strftime('%H:%M:%S')}\n"
+            f"- ISO: {now.isoformat()}"
+        )
+
     def _is_safe_path(self, path: Path, ctx: Optional[AgentContext] = None) -> bool:
         """Check if path is in safe directories, or if Overdrive is active"""
         # If overdrive is active, all paths are safe
@@ -793,6 +928,10 @@ class ToolExecutor:
         try:
             # Normalize path
             p_str = str(path.resolve()).lower()
+            # Always allow workspace_path
+            ws_str = str(self.workspace_path).lower()
+            if p_str.startswith(ws_str):
+                return True
             for safe_base in SAFE_BASE_PATHS:
                 sb_str = str(safe_base.resolve()).lower()
                 if p_str.startswith(sb_str):
