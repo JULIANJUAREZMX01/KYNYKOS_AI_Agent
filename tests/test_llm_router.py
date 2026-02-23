@@ -1,4 +1,5 @@
 import pytest
+import yaml
 from app.services.llm_router import LLMRouter
 
 
@@ -22,3 +23,13 @@ async def test_router_fallback_when_provider_down():
 
     selected = await router.select_provider()
     assert selected == "anthropic"
+
+
+def test_config_loads():
+    """Config file should load without errors"""
+    with open("app/config/llm_config.yaml") as f:
+        config = yaml.safe_load(f)
+
+    assert "llm_providers" in config
+    assert "ollama" in config["llm_providers"]
+    assert config["llm_providers"]["ollama"]["priority"] == 1
