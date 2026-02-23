@@ -1,14 +1,14 @@
-# Nanobot Cloud Deployment 🤖
+# KYNYKOS AI Agent 🤖
 
-AI Assistant for JAJA.DEV - Deployed on Render with Telegram, Dashboard, MCP Server, and S3 Backups.
+A multi-provider AI assistant deployed on Render. Features a Telegram bot, a web dashboard, MCP server integration, S3 backups, and an **LLM multi-provider router** that uses Ollama locally and falls back through cloud providers automatically.
 
 ## Architecture
 
 ```
-Telegram Bot (polling) → FastAPI app (8000) → Groq/Anthropic LLM
-                      ↓
-                Dashboard (web UI)
-                MCP Server (Claude Code CLI)
+Telegram Bot (polling) → FastAPI app (8000) → LLM Router
+                      ↓                            ↓
+                Dashboard (web UI)        Ollama (primary, local)
+                MCP Server (CLI)          Anthropic / Groq / OpenAI (fallbacks)
                 S3 Backups (scheduled)
 ```
 
@@ -23,7 +23,8 @@ Telegram Bot (polling) → FastAPI app (8000) → Groq/Anthropic LLM
 
 1. **Clone and prepare:**
    ```bash
-   cd C:\Users\QUINTANA\sistemas\NANOBOT
+   git clone https://github.com/JULIANJUAREZMX01/KYNYKOS_AI_Agent.git
+   cd KYNYKOS_AI_Agent
    cp .env.example .env
    ```
 
@@ -63,9 +64,13 @@ git push origin main
 ### 3. Configure Environment Variables
 In Render dashboard, set:
 - `TELEGRAM_TOKEN` - Telegram bot token
-- `TELEGRAM_USER_ID` - Your Telegram ID (8247886073)
-- `GROQ_API_KEY` - Groq API key
+- `TELEGRAM_USER_ID` - Your Telegram user ID
+- `OLLAMA_URL` - Ollama endpoint (e.g. `http://localhost:11434`; omit if not used on Render)
 - `ANTHROPIC_API_KEY` - Anthropic API key
+- `GROQ_API_KEY` - Groq API key
+- `OPENAI_API_KEY` - OpenAI API key
+- `LLM_CONFIG_PATH` - Path to `app/config/llm_config.yaml`
+- `LLM_ROTATION_STRATEGY` - `round_robin` (default)
 - `AWS_ACCESS_KEY_ID` - (optional) For S3 backups
 - `AWS_SECRET_ACCESS_KEY` - (optional) For S3 backups
 - `S3_BUCKET` - (optional) S3 bucket name
@@ -80,13 +85,20 @@ git push origin main
 ## File Structure
 
 ```
-NANOBOT/
+KYNYKOS_AI_Agent/
 ├── app/
 │   ├── main.py              # FastAPI entry point
 │   ├── core/                # Agent loop & context
 │   ├── cloud/               # Telegram, dashboard, MCP, backups
-│   ├── config/              # Settings & schemas
+│   ├── config/
+│   │   ├── llm_config.yaml  # LLM provider configuration
+│   │   └── schema.py        # Settings & schemas
+│   ├── services/
+│   │   ├── llm_router.py    # Multi-provider LLM router
+│   │   └── token_tracker.py # Per-provider token usage tracking
 │   └── utils/               # Logging, helpers
+├── docs/
+│   └── LLM_ROUTER_SETUP.md  # LLM router setup guide
 ├── web/                     # Dashboard UI (HTML + JS)
 ├── infrastructure/          # Docker, Render config
 ├── config/                  # YAML configuration templates
@@ -94,54 +106,39 @@ NANOBOT/
 ├── scripts/                 # Utility scripts
 ├── tests/                   # Test suite
 ├── .github/workflows/       # CI/CD workflows
+├── .env.example             # Environment variable template
 ├── pyproject.toml           # Python dependencies
 ├── Dockerfile               # Docker image
 ├── docker-compose.yml       # Local development
 └── render.yaml              # Render deployment config
 ```
 
-#IN STAGE#
-PowerShell 7 (specifically v7.5.x as of early 2026) is the modern, cross-platform evolution of the shell you likely know from Windows. While Windows PowerShell 5.1 is the "built-in" version that remains for legacy compatibility, PowerShell 7 is built on .NET 8/9, making it significantly faster and capable of running on Linux and macOS.
-Since you're orchestrating complex systems, PowerShell 7 is a massive upgrade for your workflow—especially for handling high-concurrency tasks and cross-platform automation.
-Why PowerShell 7 Matters for Your Stack
-Parallel Execution: The ForEach-Object -Parallel cmdlet allows you to run script blocks in parallel without manually managing threads or runspaces.
-Cross-Platform: Since it runs on .NET, your scripts can move between your Windows nodes (VANGUARD) and Linux environments without rewriting logic.
-Modern Operators: It introduces "quality of life" operators found in C# and Rust, such as:
-Pipeline Chain: && and || for conditional execution.
-Ternary: $a > $b ? "Greater" : "Lesser"
-Null Coalescing: ?? and ??=
-Performance: In many string processing and JSON parsing tasks, PowerShell 7 can be up to 50x faster than 5.1.
-Key Comparisons
-PowerShell 7 (specifically v7.5.x as of early 2026) is the modern, cross-platform evolution of the shell you likely know from Windows. While Windows PowerShell 5.1 is the "built-in" version that remains for legacy compatibility, PowerShell 7 is built on .NET 8/9, making it significantly faster and capable of running on Linux and macOS.
-Since you're orchestrating complex systems, PowerShell 7 is a massive upgrade for your workflow—especially for handling high-concurrency tasks and cross-platform automation.
-Why PowerShell 7 Matters for Your Stack
-Parallel Execution: The ForEach-Object -Parallel cmdlet allows you to run script blocks in parallel without manually managing threads or runspaces.
-Cross-Platform: Since it runs on .NET, your scripts can move between your Windows nodes (VANGUARD) and Linux environments without rewriting logic.
-Modern Operators: It introduces "quality of life" operators found in C# and Rust, such as:
-Pipeline Chain: && and || for conditional execution.
-Ternary: $a > $b ? "Greater" : "Lesser"
-Null Coalescing: ?? and ??=
-Performance: In many string processing and JSON parsing tasks, PowerShell 7 can be up to 50x faster than 5.1.
-Key Comparisons
-Feature Windows PowerShell 5.1 PowerShell 7.x
-Runtime .NET Framework 4.5+ .NET 8.0 / 9.0 (.NET Core)
-Platform Windows Only Windows, Linux, macOS
-Executable powershell.exe pwsh.exe (or pwsh on Unix)
-Parallelism No native Parallel parameter Native ForEach-Object -Parallel
-SSH Remoting WinRM Only WinRM and SSH
-Default Pre-installed on Windows Side-by-side install
-Quick Deployment (Windows/VANGUARD)
-Since you prefer clean, functional orchestration, I recommend installing via WinGet to keep it updated automatically:
-# Install PowerShell 7
-winget install --id Microsoft.PowerShell --source winget
-Quick Deployment (Windows/VANGUARD)
-Since you prefer clean, functional orchestration, I recommend installing via WinGet to keep it updated automatically:
-# Install PowerShell 7
-winget install --id Microsoft.PowerShell --source winget
-Direct Migration Note
-Because you are managing nodes like CATALYST and SACITY, you should know that PowerShell 7 includes a Windows Compatibility Layer. If you import a module that requires 5.1 (like certain legacy Active Directory or older industrial SDKs), PS7 will actually spin up a hidden 5.1 process to run those commands for you transparently.
-Would you like me to help you refactor any of your existing automation scripts from the KynicOS repository to use PS7's parallel processing?
-INSTAGE#
+## LLM Router
+
+The agent uses a multi-provider LLM router (`app/services/llm_router.py`) with **Ollama as the primary provider** and automatic fallback to cloud providers.
+
+### Supported Providers
+
+| Provider  | Priority | Rate Limit     | Notes                   |
+|-----------|----------|----------------|-------------------------|
+| Ollama    | 1        | ∞ (local)      | Requires local instance |
+| Anthropic | 2        | 60 req/min     | `ANTHROPIC_API_KEY`     |
+| Groq      | 3        | 30 req/min     | `GROQ_API_KEY`          |
+| OpenAI    | 4        | 60 req/min     | `OPENAI_API_KEY`        |
+
+### How Routing Works
+
+1. Each incoming request is sent to the highest-priority available provider (Ollama first).
+2. The token tracker monitors usage per provider. When a provider reaches ~90% of its rate limit, the router marks it as saturated and falls back to the next in priority order.
+3. Ollama has an infinite/local limit — it is always preferred when running.
+4. The rotation strategy (default: `round_robin`) and fallback delay are configured in `app/config/llm_config.yaml`.
+
+### Configuration
+
+- **YAML config**: `app/config/llm_config.yaml` — provider URLs, models, rate limits, and rotation strategy.
+- **Environment variables**: copy `.env.example` to `.env` and fill in the relevant keys (see [Environment Variables](#configuration) section below).
+
+See [`docs/LLM_ROUTER_SETUP.md`](docs/LLM_ROUTER_SETUP.md) for full setup instructions, including running Ollama locally via Docker.
 
 ## API Endpoints
 
@@ -188,17 +185,37 @@ mcp connect app/cloud/mcp_server.py
 ## Configuration
 
 ### Environment Variables (`.env`)
+
+Copy `.env.example` to `.env` and fill in your values. Key variables:
+
 ```
+# Telegram
 TELEGRAM_TOKEN=your_token_here
-TELEGRAM_USER_ID=8247886073
-GROQ_API_KEY=your_key_here
-ANTHROPIC_API_KEY=your_key_here
-AWS_ACCESS_KEY_ID=optional
-AWS_SECRET_ACCESS_KEY=optional
-S3_BUCKET=optional
+TELEGRAM_USER_ID=your_user_id
+
+# LLM Router
+OLLAMA_URL=http://localhost:11434
+OLLAMA_MODEL=llama2
+ANTHROPIC_API_KEY=sk-ant-...
+ANTHROPIC_MODEL=claude-opus-4-6
+GROQ_API_KEY=gsk-...
+GROQ_MODEL=mixtral-8x7b
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4
+LLM_CONFIG_PATH=app/config/llm_config.yaml
+LLM_ROTATION_STRATEGY=round_robin
+
+# AWS S3 (optional, for backups)
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+S3_BUCKET=
+
+# App
 ENVIRONMENT=development
 LOG_LEVEL=INFO
 ```
+
+> See `.env.example` for the complete list of variables with inline documentation.
 
 ### Workspace Files
 - `workspace/SOUL.md` - Agent identity & personality
