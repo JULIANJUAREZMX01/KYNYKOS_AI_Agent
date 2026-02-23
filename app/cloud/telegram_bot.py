@@ -10,10 +10,21 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 from app.config import Settings
 from app.utils import get_logger
 from app.core.context import AgentContext
+from app.services.llm_router import LLMRouter
 
 logger = get_logger(__name__)
 
 _app: Optional[Application] = None
+_llm_router: Optional[LLMRouter] = None
+
+
+async def get_ai_response(prompt: str) -> str:
+    """Get AI response through multi-provider LLM router"""
+    global _llm_router
+    if _llm_router is None:
+        _llm_router = LLMRouter()
+        await _llm_router.initialize()
+    return await _llm_router.call_llm(prompt)
 
 
 async def send_alert(message_text: str, settings: Settings) -> bool:

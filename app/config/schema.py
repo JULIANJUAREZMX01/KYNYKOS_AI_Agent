@@ -2,7 +2,7 @@
 
 import yaml
 from pathlib import Path
-from pydantic import Field
+from pydantic import Field, ConfigDict
 from pydantic_settings import BaseSettings
 from typing import Optional
 
@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     # LLM Router
     llm_config_path: str = Field(
         default="app/config/llm_config.yaml",
-        env="LLM_CONFIG_PATH"
+        validation_alias="LLM_CONFIG_PATH"
     )
 
     # App
@@ -61,6 +61,4 @@ class Settings(BaseSettings):
                 return yaml.safe_load(f).get("llm_providers", {})
         return {}
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
+    model_config = ConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
