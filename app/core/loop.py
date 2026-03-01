@@ -38,6 +38,7 @@ class AgentLoop:
         """Stop background tasks"""
         if self.sentinel_task:
             self.sentinel.stop()
+            self.sentinel_task.cancel()
             try:
                 await self.sentinel_task
             except asyncio.CancelledError:

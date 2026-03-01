@@ -4,25 +4,27 @@ from app.services.llm_router import LLMRouter
 
 
 @pytest.mark.asyncio
-async def test_router_selects_ollama_first():
-    """Should prioritize Ollama (local, no limits)"""
+async def test_router_selects_anthropic_first():
+    """Should prioritize external providers — Anthropic is first in priority order"""
     router = LLMRouter()
     await router.initialize()
-
-    selected = await router.select_provider()
-    assert selected == "ollama"
-    assert router.providers["ollama"]["status"] == "available"
-
-
-@pytest.mark.asyncio
-async def test_router_fallback_when_provider_down():
-    """Should fall back to next provider if current is unavailable"""
-    router = LLMRouter()
-    await router.initialize()
-    router.providers["ollama"]["status"] = "unavailable"
 
     selected = await router.select_provider()
     assert selected == "anthropic"
+    assert router.providers["anthropic"]["status"] == "available"
+
+
+@pytest.mark.asyncio
+async def test_router_fallback_to_ollama_when_external_providers_down():
+    """Should fall back to Ollama when all external providers are unavailable"""
+    router = LLMRouter()
+    await router.initialize()
+    router.providers["anthropic"]["status"] = "unavailable"
+    router.providers["groq"]["status"] = "unavailable"
+    router.providers["openai"]["status"] = "unavailable"
+
+    selected = await router.select_provider()
+    assert selected == "ollama"
 
 
 def test_config_loads():

@@ -11,7 +11,7 @@ from pathlib import Path
 from app.config import Settings
 from app.utils import get_logger
 from app.cloud.dashboard import create_dashboard_routes
-from app.cloud.telegram_bot import start_telegram_bot, stop_telegram_bot
+from app.cloud.telegram_bot import stop_telegram_bot
 from app.cloud import telegram_bot, whatsapp_bridge
 from app.cloud.whatsapp_bridge import create_whatsapp_routes, init_whatsapp_bridge
 from app.cloud.backup_service import BackupService
@@ -35,6 +35,8 @@ async def lifespan(app: FastAPI):
     logger.info("🚀 STARTING NANOBOT CLOUD DEPLOYMENT — PHASE 2")
     logger.info("=" * 80)
 
+    _whatsapp_task = None
+    _telegram_task = None
     try:
         # Initialize components
         logger.info("📦 Initializing components...")
@@ -79,12 +81,10 @@ async def lifespan(app: FastAPI):
         asyncio.create_task(explorer.rebuild_index())
         logger.info("🐕 Shadow Explorer ready")
 
-        # Start messaging bridges concurrently
+        # Start messaging bridges as background tasks (non-blocking)
         logger.info("📱 Starting messaging bridges...")
-        await asyncio.gather(
-            telegram_bot.start(settings),
-            whatsapp_bridge.connect(settings)
-        )
+        _telegram_task = asyncio.create_task(telegram_bot.start(settings))
+        _whatsapp_task = asyncio.create_task(whatsapp_bridge.connect(settings))
 
         logger.info("=" * 80)
         logger.info("🟢 NANOBOT IS RUNNING — READY FOR MESSAGES")
@@ -102,6 +102,10 @@ async def lifespan(app: FastAPI):
             await _agent_loop.stop()
 
         await stop_telegram_bot()
+        if _telegram_task and not _telegram_task.done():
+            _telegram_task.cancel()
+        if _whatsapp_task and not _whatsapp_task.done():
+            _whatsapp_task.cancel()
 
         logger.info("✅ Nanobot shut down gracefully")
         logger.info("=" * 80)
