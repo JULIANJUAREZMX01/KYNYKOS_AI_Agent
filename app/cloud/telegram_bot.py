@@ -220,3 +220,7 @@ async def stop_telegram_bot() -> None:
             logger.info("🛑 Telegram bot stopped")
         except Exception:
             pass
+
+async def start(settings: Settings) -> None:
+    """Start Telegram bot (alias for start_telegram_bot)"""
+    await start_telegram_bot(settings)

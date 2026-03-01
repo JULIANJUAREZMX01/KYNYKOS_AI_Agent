@@ -7,6 +7,17 @@ from pydantic_settings import BaseSettings
 from typing import Optional
 
 
+class ContractSettings(BaseSettings):
+    """Configuration for Sentinel and auto-healing contracts"""
+    sentinel_enabled: bool = True
+    auto_healing_enabled: bool = True
+    log_check_interval: int = 5
+    max_retries: int = 3
+    alert_on_failure: bool = True
+
+    model_config = ConfigDict(env_prefix="CONTRACT_", case_sensitive=False, extra="ignore")
+
+
 class Settings(BaseSettings):
     """Application settings from environment variables"""
     
@@ -51,6 +62,9 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     port: int = 8000
     host: str = "0.0.0.0"
+
+    # Contracts
+    contract_settings: ContractSettings = Field(default_factory=ContractSettings)
 
     @property
     def llm_providers(self):
