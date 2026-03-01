@@ -164,7 +164,7 @@ async def health_check():
         "telegram": True,
         "agent_loop": True,
         "sentinel": settings.contract_settings.sentinel_enabled,
-        "lmm_fallback": "external -> ollama"
+        "llm_fallback": "external -> ollama"
     }
 
 
