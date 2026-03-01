@@ -15,6 +15,7 @@ class LogSentinel:
         self.contract = settings.contract_settings
         self.watch_list: Dict[str, int] = {} # Path: last_position
         self.is_running = False
+        self._alert_tasks: List[asyncio.Task] = []
         
         # Default logs to watch
         self.add_watch("logs/kynikos.log")
@@ -77,9 +78,10 @@ class LogSentinel:
                                 # Send alert to all configured channels if enabled
                                 if self.contract.alert_on_failure:
                                     message = f"Fallo detectado en {path.name}:\n`{line.strip()[:200]}`"
-                                    # Non-blocking alerts
-                                    asyncio.create_task(send_alert(message, self.settings))
-                                    asyncio.create_task(send_whatsapp_alert(message, self.settings))
+                                    # Non-blocking alerts — tasks are tracked for clean shutdown
+                                    t1 = asyncio.create_task(send_alert(message, self.settings))
+                                    t2 = asyncio.create_task(send_whatsapp_alert(message, self.settings))
+                                    self._alert_tasks.extend([t1, t2])
                                 
                                 # Auto-healing logic could go here
                                 if self.contract.auto_healing_enabled:
@@ -93,3 +95,7 @@ class LogSentinel:
 
     def stop(self):
         self.is_running = False
+        for task in self._alert_tasks:
+            if not task.done():
+                task.cancel()
+        self._alert_tasks.clear()

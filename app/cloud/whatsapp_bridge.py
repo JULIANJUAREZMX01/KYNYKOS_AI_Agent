@@ -135,7 +135,7 @@ def _send_whatsapp_reply(to_phone: str, text: str) -> None:
 
 
 def _chunk_message(text: str, max_len: int) -> list:
-    """Split *text* into chunks of at most *max_len* characters.
+    """Split ``text`` into chunks of at most ``max_len`` characters.
 
     When more than one chunk is needed, each chunk is suffixed with a
     (n/total) indicator so the recipient can tell the message continues.
@@ -244,13 +244,10 @@ async def _process_with_agent(user_phone: str, text: str, media_url: Optional[st
 async def connect(settings: Settings) -> None:
     """
     Initialize connection to WhatsApp bridge.
-    Designed to be used in asyncio.gather for parallel startup.
+    Designed to be started as a background task during application startup.
     """
     logger.info("🔌 Connecting to WhatsApp Bridge...")
     init_whatsapp_bridge(settings)
-
-    # Simulate async connection setup check
-    await asyncio.sleep(0.5)
 
     if _twilio_client:
         logger.info("✅ WhatsApp Bridge Connected & Listening")
