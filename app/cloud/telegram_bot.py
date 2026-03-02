@@ -16,6 +16,7 @@ logger = get_logger(__name__)
 
 _app: Optional[Application] = None
 _llm_router: Optional[LLMRouter] = None
+_settings: Optional[Settings] = None
 
 
 async def get_ai_response(prompt: str) -> str:
@@ -30,6 +31,7 @@ async def get_ai_response(prompt: str) -> str:
 async def send_alert(message_text: str, settings: Settings) -> bool:
     """Send a proactive alert to Julian's mobile"""
     global _app
+
     if not _app or not settings.telegram_user_id:
         return False
     
@@ -114,10 +116,12 @@ async def handle_incoming_file(update: Update, context: ContextTypes.DEFAULT_TYP
 async def _transcribe_voice(path: Path) -> str:
     """Transcribe voice message using Groq's Whisper API"""
     try:
-        from app.main import settings
+        if not _settings:
+            return "[Audio no transcrito: settings no inicializadas]"
+
         from groq import Groq
         
-        client = Groq(api_key=settings.groq_api_key)
+        client = Groq(api_key=_settings.groq_api_key)
         
         with open(path, "rb") as file:
             transcription = client.audio.transcriptions.create(
@@ -144,13 +148,22 @@ async def _process_with_agent(update: Update, override_text: str = None) -> None
     """Central processing for agent loop"""
     user = update.effective_user
     message = update.message
-    text = override_text or message.text
+    text = override_text or (message.text if message else None)
     
-    logger.info(f"Message from {user.id}: {text[:50]}...")
+    if not user or not message:
+        return
+
+    logger.info(f"Message from {user.id}: {text[:50] if text else 'no text'}...")
     await update.message.chat.send_action("typing")
 
     try:
-        from app.main import _agent_loop, _session_manager, settings
+        # Authorization check: must match Julian's ID
+        if not _settings or str(user.id) != str(_settings.telegram_user_id):
+            logger.warning(f"Unauthorized access attempt by user {user.id}")
+            await message.reply_text("❌ Acceso no autorizado")
+            return
+
+        from app.main import _agent_loop, _session_manager
 
         if not _agent_loop:
             await message.reply_text("❌ Agent loop no iniciado")
@@ -194,7 +207,8 @@ async def _process_with_agent(update: Update, override_text: str = None) -> None
 
 async def start_telegram_bot(settings: Settings) -> None:
     """Start Telegram bot"""
-    global _app
+    global _app, _settings
+    _settings = settings
     try:
         _app = Application.builder().token(settings.telegram_token).build()
         
