@@ -1,6 +1,7 @@
 import asyncio
 import subprocess
 import json
+import platform
 import os
 from pathlib import Path
 from typing import Dict, Any, Optional, List
@@ -409,9 +410,18 @@ class ToolExecutor:
         target = args.get("target", "127.0.0.1").strip()
         
         try:
-            # Basic ping command
-            cmd = f"ping -n 1 {target}"
-            result = await asyncio.to_thread(subprocess.run, cmd, shell=True, capture_output=True, text=True)
+            # Use appropriate ping count flag based on OS
+            ping_flag = "-n" if platform.system() == "Windows" else "-c"
+
+            # Use list of arguments and shell=False to prevent command injection
+            cmd = ["ping", ping_flag, "1", target]
+            result = await asyncio.to_thread(
+                subprocess.run,
+                cmd,
+                shell=False,
+                capture_output=True,
+                text=True
+            )
             
             if result.returncode == 0:
                 return f"🟢 **{target}** está ONLINE."
