@@ -1,6 +1,5 @@
 """Telegram bot integration for Nanobot with Agent Loop"""
 
-import asyncio
 import os
 from typing import Optional
 from pathlib import Path
