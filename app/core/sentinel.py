@@ -66,9 +66,12 @@ class LogSentinel:
                         
                     if current_size > last_pos:
                         # New data!
-                        with open(path, "r", encoding="utf-8", errors="ignore") as f:
-                            f.seek(last_pos)
-                            new_lines = f.readlines()
+                        def _read_logs():
+                            with open(path, "r", encoding="utf-8", errors="ignore") as f:
+                                f.seek(last_pos)
+                                return f.readlines()
+
+                        new_lines = await asyncio.to_thread(_read_logs)
                             
                         self.watch_list[path_str] = current_size
                         
