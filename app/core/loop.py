@@ -22,6 +22,50 @@ class AgentLoop:
         self.settings = settings
         self.provider_manager = provider_manager
         self.tool_executor = ToolExecutor()
+        self._file_cache: Dict[str, Dict[str, Any]] = {}
+
+    async def _get_file_content(self, path: Path, fallback: str) -> str:
+        """Get file content with mtime-based caching and 1s TTL"""
+        try:
+            cache_key = str(path)
+            now = datetime.now().timestamp()
+            cached = self._file_cache.get(cache_key)
+
+            # Use TTL of 1 second to avoid excessive stat() calls
+            if cached and now - cached.get("last_check", 0) < 1.0:
+                return cached["content"]
+
+            def get_mtime(p):
+                try:
+                    return p.stat().st_mtime
+                except FileNotFoundError:
+                    return None
+
+            mtime = await asyncio.to_thread(get_mtime, path)
+
+            if mtime is None:
+                if cached:
+                    cached["last_check"] = now
+                return fallback
+
+            if cached and cached.get("mtime") == mtime:
+                cached["last_check"] = now
+                return cached["content"]
+
+            # Read content using to_thread
+            content = await asyncio.to_thread(path.read_text, encoding="utf-8")
+
+            # Update cache
+            self._file_cache[cache_key] = {
+                "content": content,
+                "mtime": mtime,
+                "last_check": now
+            }
+
+            return content
+        except Exception as e:
+            logger.error(f"Error reading file {path}: {e}")
+            return fallback
 
     async def process_message(self, ctx: AgentContext) -> str:
         """
@@ -96,11 +140,11 @@ class AgentLoop:
         agents_file = workspace_path / "AGENTS.md"
         memory_file = workspace_path / "memory" / "MEMORY.md"
 
-        # Load content with fallbacks
-        soul = soul_file.read_text(encoding="utf-8") if soul_file.exists() else "Eres Nanobot, un asistente de IA."
-        user = user_file.read_text(encoding="utf-8") if user_file.exists() else f"Usuario: {getattr(ctx, 'user_id', 'Unknown')}"
-        agents = agents_file.read_text(encoding="utf-8") if agents_file.exists() else "Operar con eficiencia."
-        memory = memory_file.read_text(encoding="utf-8") if memory_file.exists() else ""
+        # Load content with fallbacks using cached reader
+        soul = await self._get_file_content(soul_file, "Eres Nanobot, un asistente de IA.")
+        user = await self._get_file_content(user_file, f"Usuario: {getattr(ctx, 'user_id', 'Unknown')}")
+        agents = await self._get_file_content(agents_file, "Operar con eficiencia.")
+        memory = await self._get_file_content(memory_file, "")
 
         # Build composite prompt
         prompt = f"""
