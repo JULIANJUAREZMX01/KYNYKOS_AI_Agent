@@ -13,7 +13,7 @@ from app.utils import get_logger
 from app.cloud.dashboard import create_dashboard_routes
 from app.cloud.telegram_bot import stop_telegram_bot
 from app.cloud import telegram_bot, whatsapp_bridge
-from app.cloud.whatsapp_bridge import create_whatsapp_routes, init_whatsapp_bridge
+from app.cloud.whatsapp_bridge import create_whatsapp_routes
 from app.cloud.backup_service import BackupService
 from app.core.memory import Memory
 from app.cloud.sessions import SessionManager
