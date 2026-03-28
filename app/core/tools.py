@@ -924,17 +924,17 @@ class ToolExecutor:
         # If overdrive is active, all paths are safe
         if ctx and getattr(ctx, 'overdrive_mode', False):
             return True
-            
+
         try:
             # Normalize path
-            p_str = str(path.resolve()).lower()
+            resolved_path = path.resolve()
+
             # Always allow workspace_path
-            ws_str = str(self.workspace_path).lower()
-            if p_str.startswith(ws_str):
+            if resolved_path.is_relative_to(self.workspace_path):
                 return True
+
             for safe_base in SAFE_BASE_PATHS:
-                sb_str = str(safe_base.resolve()).lower()
-                if p_str.startswith(sb_str):
+                if resolved_path.is_relative_to(safe_base.resolve()):
                     return True
             return False
         except Exception as e:
