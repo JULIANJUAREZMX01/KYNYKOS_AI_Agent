@@ -62,6 +62,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     port: int = 8000
     host: str = "0.0.0.0"
+    cors_origins: list[str] = Field(default=["*"])
 
     # Contracts
     contract_settings: ContractSettings = Field(default_factory=ContractSettings)
