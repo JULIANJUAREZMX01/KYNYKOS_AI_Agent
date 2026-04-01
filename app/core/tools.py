@@ -223,23 +223,25 @@ class ToolExecutor:
             if not self._is_safe_path(dir_path, ctx):
                 return "❌ Acceso denegado: fuera de directorio permitido"
 
-            if not dir_path.exists():
-                return f"❌ Directorio no encontrado: {directory}"
+            def _get_entries():
+                if not dir_path.exists():
+                    return f"❌ Directorio no encontrado: {directory}"
+                if not dir_path.is_dir():
+                    return f"❌ No es un directorio: {directory}"
 
-            if not dir_path.is_dir():
-                return f"❌ No es un directorio: {directory}"
+                entries = sorted(dir_path.iterdir(), key=lambda p: (p.is_file(), p.name))
+                if not entries:
+                    return f"📂 Directory is empty: {directory}"
 
-            entries = sorted(dir_path.iterdir(), key=lambda p: (p.is_file(), p.name))
-            if not entries:
-                return f"📂 Directory is empty: {directory}"
+                lines = []
+                for entry in entries:
+                    icon = "📄" if entry.is_file() else "📁"
+                    size = f" ({entry.stat().st_size} B)" if entry.is_file() else ""
+                    lines.append(f"{icon} {entry.name}{size}")
 
-            lines = []
-            for entry in entries:
-                icon = "📄" if entry.is_file() else "📁"
-                size = f" ({entry.stat().st_size} B)" if entry.is_file() else ""
-                lines.append(f"{icon} {entry.name}{size}")
+                return f"📂 **{directory}** ({len(entries)} elementos):\n" + "\n".join(lines)
 
-            return f"📂 **{directory}** ({len(entries)} elementos):\n" + "\n".join(lines)
+            return await asyncio.to_thread(_get_entries)
 
         except Exception as e:
             return f"❌ Error listando {directory}: {str(e)}"
@@ -328,20 +330,25 @@ class ToolExecutor:
     async def _list_projects(self, args: Dict[str, Any]) -> str:
         """List main projects in sistemas directory"""
         try:
-            base_path = Path("C:/Users/QUINTANA/sistemas")
-            projects = []
-            for item in base_path.iterdir():
-                if item.is_dir() and not item.name.startswith("."):
-                    # Try to get a brief description from README if it exists
-                    readme = item / "README.md"
-                    desc = ""
-                    if readme.exists():
-                        lines = readme.read_text(encoding="utf-8").splitlines()
-                        desc = next((l for l in lines if l.strip() and not l.startswith("#")), "")[:100]
+            def _scan_projects():
+                base_path = Path("C:/Users/QUINTANA/sistemas")
+                if not base_path.exists() or not base_path.is_dir():
+                    return "❌ Directorio de sistemas no encontrado."
                     
-                    projects.append(f"- **{item.name}**: {desc}")
-            
-            return "\n".join(projects)
+                projects = []
+                for item in base_path.iterdir():
+                    if item.is_dir() and not item.name.startswith("."):
+                        # Try to get a brief description from README if it exists
+                        readme = item / "README.md"
+                        desc = ""
+                        if readme.exists():
+                            lines = readme.read_text(encoding="utf-8").splitlines()
+                            desc = next((l for l in lines if l.strip() and not l.startswith("#")), "")[:100]
+
+                        projects.append(f"- **{item.name}**: {desc}")
+                return "\n".join(projects)
+
+            return await asyncio.to_thread(_scan_projects)
         except Exception as e:
             return f"❌ Error listando proyectos: {str(e)}"
 
