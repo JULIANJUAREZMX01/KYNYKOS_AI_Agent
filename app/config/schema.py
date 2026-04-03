@@ -1,78 +1,98 @@
-"""Pydantic models for configuration"""
+"""KynicOS / KYNYKOS — Pydantic Settings"""
 
-import yaml
-from pathlib import Path
-from pydantic import Field, ConfigDict
 from pydantic_settings import BaseSettings
-from typing import Optional
+from pydantic import Field
+from typing import Optional, List
+import json
 
 
 class ContractSettings(BaseSettings):
-    """Configuration for Sentinel and auto-healing contracts"""
-    sentinel_enabled: bool = True
-    auto_healing_enabled: bool = True
-    log_check_interval: int = 5
-    max_retries: int = 3
-    alert_on_failure: bool = True
+    """Settings for Sentinel and contract monitoring"""
+    sentinel_enabled: bool = False
 
-    model_config = ConfigDict(env_prefix="CONTRACT_", case_sensitive=False, extra="ignore")
+    class Config:
+        env_prefix = "SENTINEL_"
+        env_file = ".env"
+        case_sensitive = False
+        extra = "ignore"
 
 
 class Settings(BaseSettings):
-    """Application settings from environment variables"""
-    
-    # Telegram
+    """
+    Application settings loaded from environment variables.
+    Todos los campos son opcionales excepto TELEGRAM_TOKEN y GROQ_API_KEY.
+    """
+
+    # ── Identidad ─────────────────────────────────────────────
+    persona: str = "kynikos"  # kynikos | leo | nexus | mueve
+
+    # ── Hotel Config (modo LEO/concierge) ──────────────────────
+    hotel_name: str = "KynicOS Hotel"
+    hotel_location: str = "Cancún, México"
+    hotel_currency: str = "USD"
+    hotel_timezone: str = "America/Mexico_City"
+
+    # ── Telegram ──────────────────────────────────────────────
     telegram_token: str
     telegram_user_id: str = "8247886073"
-    
-    # LLM Providers
+    # Chat ID del técnico de mantenimiento (escalación HVAC)
+    tech_telegram_chat_id: Optional[str] = None
+
+    # ── LLM — Groq (PRIMARIO, gratuito) ───────────────────────
     groq_api_key: str
-    anthropic_api_key: str
-    gemini_api_key: Optional[str] = None
-    gemini_googleai_studio_api_key: Optional[str] = None
-    
-    # Twilio WhatsApp Bridge
+    groq_model: str = "llama-3.3-70b-versatile"
+
+    # ── LLM — Together AI (FALLBACK gratuito) ─────────────────
+    # Regístrate en https://api.together.xyz — $25 créditos gratis
+    together_api_key: Optional[str] = None
+
+    # ── LLM — OpenRouter (FALLBACK modelos públicos) ──────────
+    # Regístrate en https://openrouter.ai — modelos gratis disponibles
+    openrouter_api_key: Optional[str] = None
+
+    # ── LLM — Ollama local (sin costo, sin límites) ───────────
+    # Configura OLLAMA_URL=http://localhost:11434 si tienes Ollama
+    ollama_url: Optional[str] = None
+    ollama_model: str = "llama3"
+
+    # ── OpenAI (solo para Whisper STT) ────────────────────────
+    openai_api_key: Optional[str] = None
+
+    # ── WhatsApp (Twilio) ─────────────────────────────────────
     twilio_account_sid: Optional[str] = None
     twilio_auth_token: Optional[str] = None
-    twilio_whatsapp_from: Optional[str] = None  # e.g. +14155238886 (Twilio sandbox number)
-    twilio_whatsapp_to: Optional[str] = None    # e.g. +521XXXXXXXXXX (owner's number for alerts)
+    twilio_whatsapp_from: str = "+14155238886"
+    twilio_whatsapp_to: Optional[str] = None
 
-    # Cloud Services
-    render_api_key: Optional[str] = None
-    jules_api_key: Optional[str] = None
-    desktop_commander_api_key: Optional[str] = None
-    
-    # AWS S3
+    # ── Stripe Connect (Fase 2 — pagos) ───────────────────────
+    stripe_secret_key: Optional[str] = None
+    stripe_publishable_key: Optional[str] = None
+    stripe_hotel_account_id: Optional[str] = None
+    stripe_nexus_account_id: Optional[str] = None
+    stripe_commission_percentage: int = 5
+
+    # ── Base de Datos (Fase 2) ────────────────────────────────
+    database_url: Optional[str] = None
+    redis_url: Optional[str] = None
+
+    # ── AWS S3 (backups opcionales) ───────────────────────────
     aws_access_key_id: Optional[str] = None
     aws_secret_access_key: Optional[str] = None
     aws_region: str = "us-east-1"
     s3_bucket: Optional[str] = None
-    
-    # Database
-    db2_connection_string: Optional[str] = None
-    
-    # LLM Router
-    llm_config_path: str = Field(
-        default="app/config/llm_config.yaml",
-        validation_alias="LLM_CONFIG_PATH"
-    )
 
-    # App
-    environment: str = "development"
+    # ── App ───────────────────────────────────────────────────
+    environment: str = "production"
     log_level: str = "INFO"
     port: int = 8000
     host: str = "0.0.0.0"
 
-    # Contracts
-    contract_settings: ContractSettings = Field(default_factory=ContractSettings)
-
+    # ── Sentinel (sub-settings) ───────────────────────────────
     @property
-    def llm_providers(self):
-        """Load LLM provider config"""
-        config_path = Path(self.llm_config_path)
-        if config_path.exists():
-            with open(config_path) as f:
-                return yaml.safe_load(f).get("llm_providers", {})
-        return {}
+    def contract_settings(self) -> ContractSettings:
+        return ContractSettings()
 
-    model_config = ConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
+    class Config:
+        env_file = ".env"
+        case_sensitive = False
+        extra = "ignore"

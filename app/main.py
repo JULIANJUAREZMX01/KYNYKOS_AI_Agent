@@ -1,129 +1,131 @@
-"""Main entry point for Nanobot Cloud Deployment — Phase 2 (Agent Loop)"""
+"""
+KynicOS / KYNYKOS_AI_Agent — Main Entry Point
+Monorepo unificado: nanobot-cloud + KYNYKOS + skills propios
+
+Personas:
+  PERSONA=kynikos  → Perro guardián técnico de Julián (default, SOUL.md)
+  PERSONA=leo      → Concierge de lujo para turistas (MVP Nexus Pilot)
+  PERSONA=mueve    → Guía de transporte MueveCancún
+  PERSONA=nexus    → Superagente admin
+
+Deploy en Render: https://nanobot-cloud-zjr0.onrender.com
+Service ID: srv-d6b9sihr0fns739m446g
+"""
 
 import asyncio
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 
 from app.config import Settings
 from app.utils import get_logger
-from app.cloud.dashboard import create_dashboard_routes
-from app.cloud.telegram_bot import stop_telegram_bot
-from app.cloud import telegram_bot, whatsapp_bridge
-from app.cloud.whatsapp_bridge import create_whatsapp_routes, init_whatsapp_bridge
+from app.cloud.telegram_bot import start_telegram_bot, stop_telegram_bot
 from app.cloud.backup_service import BackupService
 from app.core.memory import Memory
 from app.cloud.sessions import SessionManager
 
-# Configuration
-settings = Settings()
-# Global variables for cross-module access
+logger = get_logger(__name__)
+
+# Globals accesibles desde otros módulos (telegram_bot, etc.)
 _agent_loop = None
 _session_manager = None
-_explorer = None
-logger = get_logger(__name__)
+settings: Settings = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Lifespan context manager for startup/shutdown"""
+    """Startup / Shutdown"""
+    global _agent_loop, _session_manager, settings
 
-    logger.info("=" * 80)
-    logger.info("🚀 STARTING NANOBOT CLOUD DEPLOYMENT — PHASE 2")
-    logger.info("=" * 80)
+    logger.info("=" * 65)
+    logger.info("🐕 KYNIKOS OS — STARTING")
+    logger.info("=" * 65)
 
-    _whatsapp_task = None
-    _telegram_task = None
+    settings = Settings()
+
+    # Determinar persona activa
+    persona_name = os.getenv("PERSONA", "kynikos")
+    logger.info(f"👤 Persona configurada: {persona_name}")
+
     try:
-        # Initialize components
-        logger.info("📦 Initializing components...")
+        # Memoria y sesiones
+        Memory(workspace_path="./workspace")
+        _session_manager = SessionManager(data_dir="./data")
+        logger.info("✅ Memory + Sessions OK")
 
-        # Memory
-        memory = Memory(workspace_path="./workspace")
-        logger.info("✅ Memory initialized")
-
-        # Session manager
-        session_manager = SessionManager(data_dir="./data")
-        logger.info("✅ Session manager initialized")
-
-        # Backup service
-        backup_service = BackupService(settings)
-        if settings.s3_bucket:
-            logger.info("💾 S3 backup service available")
-        else:
-            logger.info("⏭️  S3 backups disabled")
-
-        # Initialize global agent loop
+        # LLM Provider chain (Groq → Together → OpenRouter, SIN Anthropic)
         from app.cloud.providers import ProviderManager
-        from app.core.loop import AgentLoop
-        
         provider_manager = ProviderManager(settings)
-        global _agent_loop, _session_manager
-        _agent_loop = AgentLoop(settings, provider_manager)
-        _session_manager = session_manager
-        
-        # Start AgentLoop background tasks (including Sentinel)
-        await _agent_loop.start()
-        logger.info("✅ Agent loop initialized (Sentinel active)")
 
-        # Start Shadow Explorer (indexing)
-        from app.core.explorer import ShadowExplorer
-        explorer = ShadowExplorer(base_paths=[
-            Path("C:/Users/QUINTANA/sistemas"),
-            Path("C:/Users/QUINTANA/Downloads"),
-            Path("C:/Users/QUINTANA/Desktop"),
-        ])
-        global _explorer
-        _explorer = explorer
-        asyncio.create_task(explorer.rebuild_index())
-        logger.info("🐕 Shadow Explorer ready")
+        # Agent Loop con skills de concierge
+        try:
+            from app.agents.concierge_loop import ConciergeAgentLoop
+            from app.concierge.persona import get_persona
+            persona = get_persona(persona_name)
+            _agent_loop = ConciergeAgentLoop(settings, provider_manager, persona=persona)
+            logger.info(f"✅ ConciergeAgentLoop ({persona.name}) OK")
+        except ImportError:
+            # Fallback al AgentLoop base si los módulos de concierge no están aún
+            from app.core.loop import AgentLoop
+            _agent_loop = AgentLoop(settings, provider_manager)
+            logger.info("✅ AgentLoop base OK (concierge skills no disponibles)")
 
-        # Start messaging bridges as background tasks (non-blocking)
-        logger.info("📱 Starting messaging bridges...")
-        _telegram_task = asyncio.create_task(telegram_bot.start(settings))
-        _whatsapp_task = asyncio.create_task(whatsapp_bridge.connect(settings))
+        # Iniciar tareas de background del agent loop (Sentinel, etc.)
+        if hasattr(_agent_loop, 'start'):
+            await _agent_loop.start()
 
-        logger.info("=" * 80)
-        logger.info("🟢 NANOBOT IS RUNNING — READY FOR MESSAGES")
-        logger.info("=" * 80)
+        # WhatsApp bridge (Twilio) — opcional
+        if settings.twilio_account_sid and settings.twilio_auth_token:
+            try:
+                from app.cloud.whatsapp_bridge import init_whatsapp_bridge
+                init_whatsapp_bridge(settings)
+                logger.info("✅ WhatsApp bridge (Twilio) OK")
+            except Exception as e:
+                logger.warning(f"WhatsApp bridge: {e}")
+        else:
+            logger.info("⏭️  WhatsApp bridge omitido (sin credenciales Twilio)")
+
+        # Telegram Bot
+        logger.info("📱 Iniciando Telegram bot...")
+        telegram_task = asyncio.create_task(start_telegram_bot(settings))
+
+        logger.info("=" * 65)
+        logger.info(f"🟢 KYNIKOS OS ACTIVO")
+        logger.info("=" * 65)
 
         yield
 
-        # Shutdown
-        logger.info("=" * 80)
-        logger.info("🛑 SHUTTING DOWN NANOBOT")
-        logger.info("=" * 80)
-
-        # Stop AgentLoop (stops Sentinel)
-        if _agent_loop:
+        # Shutdown limpio
+        if hasattr(_agent_loop, 'stop'):
             await _agent_loop.stop()
-
+        telegram_task.cancel()
+        try:
+            await telegram_task
+        except asyncio.CancelledError:
+            pass
         await stop_telegram_bot()
-        if _telegram_task and not _telegram_task.done():
-            _telegram_task.cancel()
-        if _whatsapp_task and not _whatsapp_task.done():
-            _whatsapp_task.cancel()
-
-        logger.info("✅ Nanobot shut down gracefully")
-        logger.info("=" * 80)
+        logger.info("✅ KynicOS shutdown OK")
 
     except Exception as e:
-        logger.error(f"❌ Fatal error during startup: {e}")
+        logger.error(f"❌ Fatal error: {e}", exc_info=True)
         raise
 
 
-# Create FastAPI app
+# ── FastAPI App ──────────────────────────────────────────────────────────────
 app = FastAPI(
-    title="Nanobot Cloud",
-    description="AI Assistant for QUINTANA — Phase 2: Agent Loop",
-    version="0.2.0",
-    lifespan=lifespan
+    title="KynicOS — KYNIKOS AI Agent",
+    description=(
+        "Sistema operativo IA para hospitalidad de lujo, transporte y DevSecOps. "
+        "Telegram + WhatsApp + HVAC Triage + MueveCancún."
+    ),
+    version="2.0.0",
+    lifespan=lifespan,
 )
 
-# Add CORS Middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -132,76 +134,70 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount static files (dashboard)
+# Static files
 web_path = Path(__file__).parent.parent / "web"
 if web_path.exists():
     app.mount("/static", StaticFiles(directory=web_path), name="static")
 
 
-# ============================================================================
-# API Routes
-# ============================================================================
-
+# ── Endpoints ────────────────────────────────────────────────────────────────
 
 @app.get("/")
 async def root():
-    """Root endpoint — serve dashboard"""
     dashboard_path = Path(__file__).parent.parent / "web" / "index.html"
     if dashboard_path.exists():
         return FileResponse(dashboard_path)
-    return {
-        "message": "Nanobot Cloud API",
+    return JSONResponse({
+        "name": "KynicOS",
+        "version": "2.0.0",
         "status": "running",
-        "version": "0.2.0",
-        "phase": "Phase 2 - Agent Loop"
-    }
+        "persona": os.getenv("PERSONA", "kynikos"),
+        "docs": "/docs",
+        "skills": ["hvac_triage", "mueve_cancun", "concierge_llm", "whisper_stt"],
+    })
 
 
 @app.get("/api/status")
-async def health_check():
-    """Health check endpoint"""
-    return {
+async def status():
+    persona_name = os.getenv("PERSONA", "kynikos")
+    providers = []
+    if _agent_loop and hasattr(_agent_loop, 'provider_manager'):
+        providers = [p.name for p in _agent_loop.provider_manager._providers]
+
+    return JSONResponse({
         "status": "ok",
-        "version": "0.2.0",
-        "phase": "2-agent-loop",
-        "environment": settings.environment,
-        "telegram": True,
-        "agent_loop": True,
-        "sentinel": settings.contract_settings.sentinel_enabled,
-        "llm_fallback": "external -> ollama"
-    }
+        "version": "2.0.0",
+        "persona": persona_name,
+        "agent_loop": _agent_loop is not None,
+        "llm_chain": providers,
+        "channels": ["telegram", "whatsapp"],
+        "skills": ["hvac_triage", "mueve_cancun", "concierge_llm"],
+        "deploy_url": "https://nanobot-cloud-zjr0.onrender.com",
+        "fixes": [
+            "Groq 413 → truncado automático + modelo fallback",
+            "Telegram Conflict → drop_pending_updates=True",
+            "Sin Anthropic → cadena: Groq → Together → OpenRouter",
+        ],
+    })
 
 
-# Register dashboard routes
-app.include_router(create_dashboard_routes(), prefix="/api")
+# WhatsApp webhook
+try:
+    from app.cloud.whatsapp_bridge import create_whatsapp_routes
+    app.include_router(create_whatsapp_routes(), prefix="/api")
+except Exception:
+    pass
 
-# Register WhatsApp webhook routes
-app.include_router(create_whatsapp_routes(), prefix="/api")
-
-
-# ============================================================================
-# Startup/Shutdown Events
-# ============================================================================
-
-
-@app.on_event("startup")
-async def startup():
-    """Startup event"""
-    logger.info("✅ FastAPI startup complete")
+# Dashboard routes
+try:
+    from app.cloud.dashboard import create_dashboard_routes
+    app.include_router(create_dashboard_routes(), prefix="/api")
+except Exception:
+    pass
 
 
-@app.on_event("shutdown")
-async def shutdown():
-    """Shutdown event"""
-    logger.info("✅ FastAPI shutdown complete")
-
-
+# ── Entry Point ──────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     import uvicorn
-
-    uvicorn.run(
-        "app.main:app",
-        host=settings.host,
-        port=settings.port,
-        reload=settings.environment == "development"
-    )
+    s = Settings()
+    uvicorn.run("app.main:app", host=s.host, port=s.port, reload=s.environment == "development")
