@@ -1,51 +1,50 @@
-# Multi-stage build for Nanobot Cloud Deployment
+# ============================================================
+# KynicOS — Dockerfile
+# Multi-stage, mínimo, sin secretos en imagen
+# ============================================================
 
-# Stage 1: Python build environment
-FROM python:3.11-slim as builder
+FROM python:3.12-slim AS builder
 
-WORKDIR /build
+# Dependencias de sistema mínimas
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git \
+    gcc libffi-dev curl git \
     && rm -rf /var/lib/apt/lists/*
 
-COPY pyproject.toml poetry.lock* ./
-RUN pip install --no-cache-dir poetry && \
-    poetry config virtualenvs.in-project true && \
-    poetry install --only main --no-interaction --no-ansi
+WORKDIR /build
 
-# Stage 2: Runtime environment
-FROM python:3.11-slim
+# Poetry solo para resolver dependencias → requirements.txt
+RUN pip install --no-cache-dir poetry==1.8.3
+
+COPY pyproject.toml poetry.lock* ./
+RUN poetry export -f requirements.txt --without-hashes --without dev -o requirements.txt 2>/dev/null || \
+    poetry install --only main --no-root
+
+# ── Runtime ───────────────────────────────────────────────────
+FROM python:3.12-slim AS runtime
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+# Instalar deps desde builder
+COPY --from=builder /build/requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt 2>/dev/null || true
 
-# Copy Python virtual environment from builder
-COPY --from=builder /build/.venv /app/.venv
+# Copiar app
+COPY app/ ./app/
+COPY workspace/ ./workspace/
+COPY config/ ./config/
+COPY web/ ./web/
 
-# Copy application code
-COPY app/ /app/app/
-COPY workspace/ /app/workspace/
-COPY config/ /app/config/
-COPY web/ /app/web/
-
-# Set environment variables
-ENV PATH="/app/.venv/bin:$PATH"
-ENV PYTHONUNBUFFERED=1
-ENV PYTHONPATH=/app
-
-# Create data directory for sessions/logs
-RUN mkdir -p /app/data
-
-# Expose port for FastAPI
-EXPOSE 8000
+# Volumen de datos runtime (sesiones, memoria dinámica)
+RUN mkdir -p /app/data/sessions /app/workspace/logic /app/workspace/skills
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/api/status || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD curl -f http://localhost:${PORT:-8000}/api/status || exit 1
 
-# Start application
-CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+EXPOSE 8000
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

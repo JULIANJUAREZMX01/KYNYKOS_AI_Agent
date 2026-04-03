@@ -1,42 +1,149 @@
-version: '3.8'
+# ============================================================
+# KynicOS — docker-compose.yml
+# Stack: Autárquico, zero-cost, zero-dependencias externas
+#
+# Filosofía Diógenes.Dev:
+#   - Todo corre local. Cloud es opcional, no necesario.
+#   - Ollama = LLM autónomo sin API keys.
+#   - Redis = memoria efímera sin BD externa.
+#   - Evolution API = WhatsApp sin Twilio (opcional).
+#
+# Uso:
+#   docker-compose up                    → Core (bot + redis)
+#   docker-compose --profile ollama up  → + LLM local
+#   docker-compose --profile whatsapp up → + Evolution API
+#   docker-compose --profile full up    → Todo
+# ============================================================
+
+version: "3.9"
+
+# ── Volúmenes persistentes ────────────────────────────────────
+volumes:
+  kynikos-data:       # sesiones, memoria, workspace
+  kynikos-models:     # modelos Ollama (persisten entre reinicios)
+  kynikos-evolution:  # datos Evolution API WhatsApp
+  redis-data:
+
+# ── Red interna ───────────────────────────────────────────────
+networks:
+  kynikos-net:
+    driver: bridge
 
 services:
-  nanobot:
+
+  # ── [CORE] KynicOS Agent ─────────────────────────────────────
+  kynikos:
     build:
       context: ..
       dockerfile: infrastructure/Dockerfile
-    container_name: nanobot-cloud
+    container_name: kynikos-agent
+    restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "${PORT:-8000}:8000"
     environment:
+      # Identidad
+      - PERSONA=${PERSONA:-kynikos}
+      - HOTEL_NAME=${HOTEL_NAME:-KynicOS}
+      # Telegram
       - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
       - TELEGRAM_USER_ID=${TELEGRAM_USER_ID:-8247886073}
+      - TECH_TELEGRAM_CHAT_ID=${TECH_TELEGRAM_CHAT_ID:-}
+      # LLM — Groq primario (gratis)
       - GROQ_API_KEY=${GROQ_API_KEY}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
-      - AWS_REGION=${AWS_REGION:-us-east-1}
-      - S3_BUCKET=${S3_BUCKET:-}
-      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - GROQ_MODEL=${GROQ_MODEL:-llama-3.3-70b-versatile}
+      # LLM — Fallbacks públicos (todos opcionales)
+      - TOGETHER_API_KEY=${TOGETHER_API_KEY:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      # LLM — Ollama local (autárquico, sin internet)
+      - OLLAMA_URL=http://ollama:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2:3b}
+      # WhatsApp Evolution API (autárquico, sin Twilio)
+      - EVOLUTION_API_URL=http://evolution:8080
+      - EVOLUTION_API_KEY=${EVOLUTION_API_KEY:-kynikos-evo-key}
+      # WhatsApp Twilio (fallback opcional)
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID:-}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN:-}
+      # Redis
+      - REDIS_URL=redis://redis:6379/0
+      # Stripe (Fase 2)
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
+      # App
+      - ENVIRONMENT=${ENVIRONMENT:-production}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - PORT=8000
     volumes:
-      - ./workspace:/app/workspace
-      - ./data:/app/data
-      - nanobot-cache:/app/.cache
-    restart: unless-stopped
+      - kynikos-data:/app/data
+      - ../workspace:/app/workspace
     networks:
-      - nanobot-network
+      - kynikos-net
+    depends_on:
+      - redis
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/status"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 10s
+      start_period: 15s
 
-volumes:
-  nanobot-cache:
-    driver: local
+  # ── [CORE] Redis — Memoria efímera ───────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: kynikos-redis
+    restart: unless-stopped
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    networks:
+      - kynikos-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
 
-networks:
-  nanobot-network:
-    driver: bridge
+  # ── [PROFILE: ollama] LLM local autárquico ───────────────────
+  # Uso: docker-compose --profile ollama up
+  # Primera vez: docker exec kynikos-ollama ollama pull llama3.2:3b
+  ollama:
+    image: ollama/ollama:latest
+    container_name: kynikos-ollama
+    profiles: ["ollama", "full"]
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - kynikos-models:/root/.ollama
+    networks:
+      - kynikos-net
+    # GPU opcional (comentar si no hay GPU)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  # ── [PROFILE: whatsapp] Evolution API — WhatsApp sin Twilio ──
+  # Uso: docker-compose --profile whatsapp up
+  # Docs: https://github.com/EvolutionAPI/evolution-api
+  evolution:
+    image: atendai/evolution-api:v2.2.0
+    container_name: kynikos-evolution
+    profiles: ["whatsapp", "full"]
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - SERVER_URL=http://localhost:8080
+      - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY:-kynikos-evo-key}
+      - DATABASE_ENABLED=false
+      - REDIS_ENABLED=true
+      - REDIS_URI=redis://redis:6379/1
+      - WEBHOOK_GLOBAL_ENABLED=true
+      - WEBHOOK_GLOBAL_URL=http://kynikos:8000/api/whatsapp/webhook
+      - LOG_LEVEL=ERROR
+    volumes:
+      - kynikos-evolution:/evolution/instances
+    networks:
+      - kynikos-net
+    depends_on:
+      - redis

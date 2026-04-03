@@ -1,64 +1,75 @@
+# KynicOS — render.yaml
+# Un servicio, máxima autarquía, deploy en 1 click.
+
 services:
   - type: web
-    name: nanobot
+    name: nanobot-cloud
     runtime: python
     plan: free
-    
-    # Build and deploy commands
+    region: oregon
+
     buildCommand: |
       pip install --upgrade pip && \
       pip install poetry && \
-      poetry install --only main
-    
+      poetry install --only main --no-root
+
     startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
-    
-    # Environment variables (set these in Render dashboard)
-    envVars:
-      - key: TELEGRAM_TOKEN
-        scope: run
-        sync: false
-      - key: TELEGRAM_USER_ID
-        scope: run
-        value: "8247886073"
-      - key: GROQ_API_KEY
-        scope: run
-        sync: false
-      - key: ANTHROPIC_API_KEY
-        scope: run
-        sync: false
-      - key: AWS_ACCESS_KEY_ID
-        scope: run
-        sync: false
-      - key: AWS_SECRET_ACCESS_KEY
-        scope: run
-        sync: false
-      - key: AWS_REGION
-        scope: run
-        value: "us-east-1"
-      - key: S3_BUCKET
-        scope: run
-        sync: false
-      - key: ENVIRONMENT
-        scope: run
-        value: "production"
-      - key: LOG_LEVEL
-        scope: run
-        value: "INFO"
-    
-    # Auto-deploy on push
-    autoScaleFactor: 1
-    preDeployCommand: "pytest tests/ || true"
-    
-    # Health check configuration
+
     healthCheckPath: /api/status
-    
-    # Disk size (useful for data/backups)
+
     disk:
-      name: nanobot-data
+      name: kynikos-data
+      mountPath: /app/data
       sizeGB: 1
 
-# Optional: PostgreSQL for sessions (if needed in future)
-# databases:
-#   - name: nanobot-db
-#     databaseName: nanobot
-#     plan: free
+    envVars:
+      # Identidad
+      - key: PERSONA
+        value: kynikos
+
+      # Telegram (REQUERIDO)
+      - key: TELEGRAM_TOKEN
+        sync: false
+      - key: TELEGRAM_USER_ID
+        value: "8247886073"
+      - key: TECH_TELEGRAM_CHAT_ID
+        sync: false
+
+      # LLM — Groq (REQUERIDO, gratis)
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: llama-3.3-70b-versatile
+
+      # LLM — Fallbacks públicos (TODOS OPCIONALES)
+      - key: TOGETHER_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      # Ollama local: no aplica en Render (usar docker-compose local)
+
+      # WhatsApp Evolution (OPCIONAL — solo si usas docker-compose)
+      - key: EVOLUTION_API_URL
+        value: ""
+      - key: EVOLUTION_API_KEY
+        value: ""
+
+      # WhatsApp Twilio (OPCIONAL, de pago)
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_WHATSAPP_FROM
+        value: "+14155238886"
+
+      # Stripe (OPCIONAL, Fase 2)
+      - key: STRIPE_SECRET_KEY
+        sync: false
+
+      # App
+      - key: ENVIRONMENT
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+      - key: PYTHONUNBUFFERED
+        value: "1"
