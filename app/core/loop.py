@@ -1,14 +1,13 @@
 """Main agent loop - processes messages and executes tools"""
 
 import asyncio
-import json
 from pathlib import Path
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, List
 from datetime import datetime
 
 from app.config import Settings
 from app.utils import get_logger
-from app.core.context import AgentContext, Message
+from app.core.context import AgentContext
 from app.core.tools import ToolExecutor
 from app.cloud.providers import ProviderManager
 
