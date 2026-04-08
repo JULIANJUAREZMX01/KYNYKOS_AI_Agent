@@ -2,6 +2,7 @@ import asyncio
 import subprocess
 import json
 import os
+import shlex
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 from urllib.parse import urlparse
@@ -260,10 +261,14 @@ class ToolExecutor:
         try:
             logger.info(f"Git: {operation}")
 
+            # Safely split the operation into arguments
+            git_args = ["git"] + shlex.split(operation)
+
             result = await asyncio.to_thread(
                 subprocess.run,
-                f'cd "{repo_path}" && git {operation}',
-                shell=True,
+                git_args,
+                cwd=repo_path,
+                shell=False,
                 capture_output=True,
                 text=True,
                 timeout=30,
@@ -309,12 +314,13 @@ class ToolExecutor:
 
         try:
             # Use powershell Select-String as a grep alternative for Windows
-            command = f'powershell -Command "Get-ChildItem -Path {path} -Recurse | Select-String -Pattern \'{query}\' | Select-Object -First 20"'
+            # Use a script block and $args to safely pass parameters
+            ps_script = "& { Get-ChildItem -Path $args[0] -Recurse | Select-String -Pattern $args[1] | Select-Object -First 20 }"
             
             result = await asyncio.to_thread(
                 subprocess.run,
-                command,
-                shell=True,
+                ["powershell", "-NoProfile", "-Command", ps_script, path, query],
+                shell=False,
                 capture_output=True,
                 text=True,
                 timeout=30,
@@ -409,9 +415,15 @@ class ToolExecutor:
         target = args.get("target", "127.0.0.1").strip()
         
         try:
-            # Basic ping command
-            cmd = f"ping -n 1 {target}"
-            result = await asyncio.to_thread(subprocess.run, cmd, shell=True, capture_output=True, text=True)
+            # Basic ping command (Windows style -n 1)
+            result = await asyncio.to_thread(
+                subprocess.run,
+                ["ping", "-n", "1", target],
+                shell=False,
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
             
             if result.returncode == 0:
                 return f"🟢 **{target}** está ONLINE."
@@ -622,8 +634,8 @@ class ToolExecutor:
             
             result = await asyncio.to_thread(
                 subprocess.run,
-                f"python {script_path}",
-                shell=True,
+                ["python", str(script_path)],
+                shell=False,
                 capture_output=True,
                 text=True,
                 cwd=script_path.parent.parent.parent # Run from project root
@@ -667,8 +679,15 @@ class ToolExecutor:
         try:
             if action == "list":
                 # List top processes using powershell for better formatting
-                cmd = 'powershell "Get-Process | Sort-Object CPU -Descending | Select-Object -First 15 Name, Id, CPU, WorkingSet | Format-Table -HideTableHeaders"'
-                result = await asyncio.to_thread(subprocess.run, cmd, shell=True, capture_output=True, text=True)
+                ps_script = "Get-Process | Sort-Object CPU -Descending | Select-Object -First 15 Name, Id, CPU, WorkingSet | Format-Table -HideTableHeaders"
+                result = await asyncio.to_thread(
+                    subprocess.run,
+                    ["powershell", "-NoProfile", "-Command", ps_script],
+                    shell=False,
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                )
                 return f"💀 **Procesos Activos (Top 15 por CPU)**:\n```\n{result.stdout}\n```"
             
             elif action == "kill":
@@ -676,8 +695,20 @@ class ToolExecutor:
                     return "❌ Necesito el nombre o ID del proceso para terminarlo."
                 
                 # Use taskkill for force
-                cmd = f"taskkill /F /IM {filter_name}*" if not filter_name.isdigit() else f"taskkill /F /PID {filter_name}"
-                result = await asyncio.to_thread(subprocess.run, cmd, shell=True, capture_output=True, text=True)
+                kill_args = ["taskkill", "/F"]
+                if filter_name.isdigit():
+                    kill_args.extend(["/PID", filter_name])
+                else:
+                    kill_args.extend(["/IM", f"{filter_name}*"])
+
+                result = await asyncio.to_thread(
+                    subprocess.run,
+                    kill_args,
+                    shell=False,
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                )
                 
                 if result.returncode == 0:
                     return f"💀 Proceso `{filter_name}` terminado por orden superior."
@@ -845,8 +876,16 @@ class ToolExecutor:
         
         try:
             # Use PowerShell SAPI for zero dependencies local speech
-            cmd = f'powershell -Command "Add-Type –AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer).Speak(\'{text}\')"'
-            asyncio.create_task(asyncio.to_thread(subprocess.run, cmd, shell=True))
+            # Use a script block and $args to safely pass parameters
+            ps_script = "Add-Type -AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer).Speak($args[0])"
+
+            asyncio.create_task(
+                asyncio.to_thread(
+                    subprocess.run,
+                    ["powershell", "-NoProfile", "-Command", ps_script, text],
+                    shell=False
+                )
+            )
             return "🗣️ KYNYKOS hablando por los altavoces de la PC."
         except Exception as e:
             return f"❌ Error en habla local: {e}"
