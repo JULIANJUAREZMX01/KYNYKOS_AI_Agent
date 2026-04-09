@@ -349,19 +349,41 @@ class ToolExecutor:
         """Control system power (shutdown, restart)"""
         action = args.get("action", "").lower()
 
-        if action == "shutdown":
-            logger.info("KYNIKOS: Inicando apagado del sistema...")
-            os.system("shutdown /s /t 60 /c \"KYNIKOS: Apagado remoto solicitado por Julian\"")
-            return "🚀 Comando de apagado enviado. La PC se apagará en 60 segundos. Adiós, Julian."
-        elif action == "restart":
-            logger.info("KYNIKOS: Iniciando reinicio del sistema...")
-            os.system("shutdown /r /t 60 /c \"KYNIKOS: Reinicio remoto solicitado por Julian\"")
-            return "🔄 Comando de reinicio enviado. La PC se reiniciará en 60 segundos."
-        elif action == "abort":
-            os.system("shutdown /a")
-            return "✅ Apagado/Reinicio abortado. KYNIKOS sigue en guardia."
-        else:
-            return "❌ Acción desconocida. Usa: shutdown, restart, abort."
+        try:
+            if action == "shutdown":
+                logger.info("KYNIKOS: Inicando apagado del sistema...")
+                await asyncio.to_thread(
+                    subprocess.run,
+                    ["shutdown", "/s", "/t", "60", "/c", "KYNIKOS: Apagado remoto solicitado por Julian"],
+                    shell=False,
+                    capture_output=True,
+                    text=True
+                )
+                return "🚀 Comando de apagado enviado. La PC se apagará en 60 segundos. Adiós, Julian."
+            elif action == "restart":
+                logger.info("KYNIKOS: Iniciando reinicio del sistema...")
+                await asyncio.to_thread(
+                    subprocess.run,
+                    ["shutdown", "/r", "/t", "60", "/c", "KYNIKOS: Reinicio remoto solicitado por Julian"],
+                    shell=False,
+                    capture_output=True,
+                    text=True
+                )
+                return "🔄 Comando de reinicio enviado. La PC se reiniciará en 60 segundos."
+            elif action == "abort":
+                await asyncio.to_thread(
+                    subprocess.run,
+                    ["shutdown", "/a"],
+                    shell=False,
+                    capture_output=True,
+                    text=True
+                )
+                return "✅ Apagado/Reinicio abortado. KYNIKOS sigue en guardia."
+            else:
+                return "❌ Acción desconocida. Usa: shutdown, restart, abort."
+        except Exception as e:
+            logger.error(f"Error en system_control: {e}")
+            return f"❌ Error ejecutando acción de sistema: {e}"
 
     async def _send_to_mobile(self, args: Dict[str, Any], ctx: AgentContext) -> str:
         """Mark a file to be sent to the mobile device"""
