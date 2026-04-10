@@ -44,6 +44,39 @@ async def test_read_file_not_found(tool_executor, agent_context):
 
 
 @pytest.mark.asyncio
+async def test_calculate_success(tool_executor):
+    """Test successful calculation"""
+    result = await tool_executor.execute(
+        "calculate",
+        {"expression": "2 + 2 * 3"},
+        None
+    )
+    assert "8" in result
+
+
+@pytest.mark.asyncio
+async def test_calculate_division_by_zero(tool_executor):
+    """Test calculation with division by zero"""
+    result = await tool_executor.execute(
+        "calculate",
+        {"expression": "1 / 0"},
+        None
+    )
+    assert "División entre cero" in result
+
+
+@pytest.mark.asyncio
+async def test_calculate_invalid_operation(tool_executor):
+    """Test calculation with unauthorized operation"""
+    result = await tool_executor.execute(
+        "calculate",
+        {"expression": "__import__('os').system('ls')"},
+        None
+    )
+    assert "Operación no permitida" in result
+
+
+@pytest.mark.asyncio
 async def test_write_and_read_file(tool_executor, agent_context, tmp_path):
     """Test writing and reading a file"""
     # Write file
