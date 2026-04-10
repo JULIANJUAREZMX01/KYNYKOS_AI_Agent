@@ -1,5 +1,7 @@
 import asyncio
 import subprocess
+import shlex
+import platform
 import json
 import os
 from pathlib import Path
@@ -133,10 +135,14 @@ class ToolExecutor:
         try:
             logger.info(f"Executing: {command[:100]}")
 
+            # Use shlex.split to parse the command into a list of arguments
+            # and run with shell=False to prevent command injection.
+            cmd_args = shlex.split(command)
+
             result = await asyncio.to_thread(
                 subprocess.run,
-                command,
-                shell=True,
+                cmd_args,
+                shell=False,
                 capture_output=True,
                 text=True,
                 timeout=30,
@@ -260,10 +266,14 @@ class ToolExecutor:
         try:
             logger.info(f"Git: {operation}")
 
+            # Use list of arguments and cwd to avoid shell injection
+            cmd_args = ["git"] + shlex.split(operation)
+
             result = await asyncio.to_thread(
                 subprocess.run,
-                f'cd "{repo_path}" && git {operation}',
-                shell=True,
+                cmd_args,
+                cwd=repo_path,
+                shell=False,
                 capture_output=True,
                 text=True,
                 timeout=30,
@@ -309,12 +319,14 @@ class ToolExecutor:
 
         try:
             # Use powershell Select-String as a grep alternative for Windows
-            command = f'powershell -Command "Get-ChildItem -Path {path} -Recurse | Select-String -Pattern \'{query}\' | Select-Object -First 20"'
+            # Use script block and pass arguments separately for security
+            script = "Get-ChildItem -Path $args[0] -Recurse | Select-String -Pattern $args[1] | Select-Object -First 20"
+            cmd_args = ["powershell", "-NoProfile", "-Command", f"& {{ {script} }}", path, query]
             
             result = await asyncio.to_thread(
                 subprocess.run,
-                command,
-                shell=True,
+                cmd_args,
+                shell=False,
                 capture_output=True,
                 text=True,
                 timeout=30,
@@ -389,16 +401,16 @@ class ToolExecutor:
         """Get PC performance stats (CPU, RAM, Disk)"""
         try:
             # CPU
-            cpu_cmd = "powershell -NoProfile -Command \"Get-CimInstance Win32_Processor | Select-Object -ExpandProperty LoadPercentage\""
-            cpu_load = await asyncio.to_thread(subprocess.check_output, cpu_cmd, shell=True, text=True)
+            cpu_cmd = ["powershell", "-NoProfile", "-Command", "Get-CimInstance Win32_Processor | Select-Object -ExpandProperty LoadPercentage"]
+            cpu_load = await asyncio.to_thread(subprocess.check_output, cpu_cmd, shell=False, text=True)
             
             # RAM
-            ram_cmd = "powershell -NoProfile -Command \"$mem = Get-CimInstance Win32_OperatingSystem; '{0:N2} GB libre / {1:N2} GB total' -f ($mem.FreePhysicalMemory / 1MB), ($mem.TotalVisibleMemorySize / 1MB)\""
-            ram_stats = await asyncio.to_thread(subprocess.check_output, ram_cmd, shell=True, text=True)
+            ram_cmd = ["powershell", "-NoProfile", "-Command", "$mem = Get-CimInstance Win32_OperatingSystem; '{0:N2} GB libre / {1:N2} GB total' -f ($mem.FreePhysicalMemory / 1MB), ($mem.TotalVisibleMemorySize / 1MB)"]
+            ram_stats = await asyncio.to_thread(subprocess.check_output, ram_cmd, shell=False, text=True)
             
             # Disk
-            disk_cmd = "powershell -NoProfile -Command \"Get-CimInstance Win32_LogicalDisk -Filter 'DeviceID=''C:''' | Select-Object @{n='Free';e={'{0:N2} GB' -f ($_.FreeSpace / 1GB)}}, @{n='Size';e={'{0:N2} GB' -f ($_.Size / 1GB)}} | Format-List\""
-            disk_stats = await asyncio.to_thread(subprocess.check_output, disk_cmd, shell=True, text=True)
+            disk_cmd = ["powershell", "-NoProfile", "-Command", "Get-CimInstance Win32_LogicalDisk -Filter 'DeviceID=''C:''' | Select-Object @{n='Free';e={'{0:N2} GB' -f ($_.FreeSpace / 1GB)}}, @{n='Size';e={'{0:N2} GB' -f ($_.Size / 1GB)}} | Format-List"]
+            disk_stats = await asyncio.to_thread(subprocess.check_output, disk_cmd, shell=False, text=True)
 
             return f"📊 **Status de KYNIKOS PC**:\n- **CPU**: {cpu_load.strip()}%\n- **RAM**: {ram_stats.strip()}\n- **Disco (C:)**:\n{disk_stats.strip()}"
         except Exception as e:
@@ -409,9 +421,10 @@ class ToolExecutor:
         target = args.get("target", "127.0.0.1").strip()
         
         try:
-            # Basic ping command
-            cmd = f"ping -n 1 {target}"
-            result = await asyncio.to_thread(subprocess.run, cmd, shell=True, capture_output=True, text=True)
+            # Basic ping command - use -c on Linux, -n on Windows
+            flag = "-n" if platform.system() == "Windows" else "-c"
+            cmd = ["ping", flag, "1", target]
+            result = await asyncio.to_thread(subprocess.run, cmd, shell=False, capture_output=True, text=True)
             
             if result.returncode == 0:
                 return f"🟢 **{target}** está ONLINE."
@@ -622,8 +635,8 @@ class ToolExecutor:
             
             result = await asyncio.to_thread(
                 subprocess.run,
-                f"python {script_path}",
-                shell=True,
+                ["python", str(script_path)],
+                shell=False,
                 capture_output=True,
                 text=True,
                 cwd=script_path.parent.parent.parent # Run from project root
@@ -667,8 +680,8 @@ class ToolExecutor:
         try:
             if action == "list":
                 # List top processes using powershell for better formatting
-                cmd = 'powershell "Get-Process | Sort-Object CPU -Descending | Select-Object -First 15 Name, Id, CPU, WorkingSet | Format-Table -HideTableHeaders"'
-                result = await asyncio.to_thread(subprocess.run, cmd, shell=True, capture_output=True, text=True)
+                cmd = ["powershell", "-NoProfile", "-Command", "Get-Process | Sort-Object CPU -Descending | Select-Object -First 15 Name, Id, CPU, WorkingSet | Format-Table -HideTableHeaders"]
+                result = await asyncio.to_thread(subprocess.run, cmd, shell=False, capture_output=True, text=True)
                 return f"💀 **Procesos Activos (Top 15 por CPU)**:\n```\n{result.stdout}\n```"
             
             elif action == "kill":
@@ -676,8 +689,11 @@ class ToolExecutor:
                     return "❌ Necesito el nombre o ID del proceso para terminarlo."
                 
                 # Use taskkill for force
-                cmd = f"taskkill /F /IM {filter_name}*" if not filter_name.isdigit() else f"taskkill /F /PID {filter_name}"
-                result = await asyncio.to_thread(subprocess.run, cmd, shell=True, capture_output=True, text=True)
+                if not filter_name.isdigit():
+                    cmd = ["taskkill", "/F", "/IM", f"{filter_name}*"]
+                else:
+                    cmd = ["taskkill", "/F", "/PID", filter_name]
+                result = await asyncio.to_thread(subprocess.run, cmd, shell=False, capture_output=True, text=True)
                 
                 if result.returncode == 0:
                     return f"💀 Proceso `{filter_name}` terminado por orden superior."
@@ -698,13 +714,25 @@ class ToolExecutor:
             if target in ["all", "code"]:
                 # Attempt to pull from git
                 logger.info("🔧 KYNIKOS: Iniciando auto-actualización vía Git...")
-                result = await asyncio.to_thread(subprocess.run, "git pull origin main", shell=True, capture_output=True, text=True)
+                result = await asyncio.to_thread(
+                    subprocess.run,
+                    ["git", "pull", "origin", "main"],
+                    shell=False,
+                    capture_output=True,
+                    text=True
+                )
                 reports.append(f"Git: {result.stdout.strip() or 'Al día'}")
             
             if target in ["all", "deps"]:
                 # Check/install dependencies
                 logger.info("🔧 KYNIKOS: Verificando dependencias...")
-                result = await asyncio.to_thread(subprocess.run, "pip install -r requirements.txt", shell=True, capture_output=True, text=True)
+                result = await asyncio.to_thread(
+                    subprocess.run,
+                    ["pip", "install", "-r", "requirements.txt"],
+                    shell=False,
+                    capture_output=True,
+                    text=True
+                )
                 reports.append("Dependencias verificadas.")
 
             if target in ["all", "index"]:
@@ -845,8 +873,9 @@ class ToolExecutor:
         
         try:
             # Use PowerShell SAPI for zero dependencies local speech
-            cmd = f'powershell -Command "Add-Type –AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer).Speak(\'{text}\')"'
-            asyncio.create_task(asyncio.to_thread(subprocess.run, cmd, shell=True))
+            script = "Add-Type –AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer).Speak($args[0])"
+            cmd = ["powershell", "-NoProfile", "-Command", f"& {{ {script} }}", text]
+            asyncio.create_task(asyncio.to_thread(subprocess.run, cmd, shell=False))
             return "🗣️ KYNYKOS hablando por los altavoces de la PC."
         except Exception as e:
             return f"❌ Error en habla local: {e}"
