@@ -27,8 +27,8 @@ def settings():
 async def provider_manager(settings):
     """Test provider manager"""
     # Mock the API clients to avoid actual API calls
-    with patch("app.cloud.providers.groq.Groq"), \
-         patch("app.cloud.providers.anthropic.Anthropic"):
+    with patch("app.cloud.providers.GroqProvider"), \
+         patch("app.cloud.providers.AnthropicProvider"):
         return ProviderManager(settings)
 
 
@@ -140,7 +140,7 @@ async def test_session_manager_list_sessions(context):
 async def test_agent_loop_format_messages(agent_loop, context):
     """Test message formatting for LLM"""
     context.add_message("user", "Hello")
-    messages = agent_loop._format_messages(context)
+    messages = await agent_loop._format_messages(context)
     
     # Should have system + user message
     assert len(messages) >= 1
@@ -150,7 +150,7 @@ async def test_agent_loop_format_messages(agent_loop, context):
 @pytest.mark.asyncio
 async def test_agent_loop_build_system_prompt(agent_loop, context):
     """Test system prompt building"""
-    prompt = agent_loop._build_system_prompt(context)
+    prompt = await agent_loop._build_system_prompt(context)
     
     assert "Nanobot" in prompt
     assert "QUINTANA" in prompt
@@ -158,21 +158,22 @@ async def test_agent_loop_build_system_prompt(agent_loop, context):
 
 
 @pytest.mark.asyncio
-async def test_tool_executor_execute_shell():
+async def test_tool_executor_execute_shell(context):
     """Test shell command execution"""
     executor = ToolExecutor()
     
     # Safe command
-    result = await executor._execute_shell({"command": "echo test"})
+    result = await executor._execute_shell({"command": "echo test"}, context)
     assert "test" in result
     
     # Dangerous command
-    result = await executor._execute_shell({"command": "rm -rf /"})
+    result = await executor._execute_shell({"command": "rm -rf /"}, context)
     assert "bloqueado" in result.lower()
 
 
+
 @pytest.mark.asyncio
-async def test_tool_executor_read_file(tmp_path):
+async def test_tool_executor_read_file(tmp_path, context):
     """Test file reading"""
     executor = ToolExecutor()
     
@@ -181,15 +182,16 @@ async def test_tool_executor_read_file(tmp_path):
     test_file.write_text("Hello, World!")
     
     # Should fail because path is not safe
-    result = await executor._read_file({"path": str(test_file)})
+    result = await executor._read_file({"path": str(test_file)}, context)
     assert "acceso denegado" in result.lower()
+
 
 
 @pytest.mark.asyncio
 async def test_provider_manager_initialization(settings):
     """Test provider manager initializes"""
-    with patch("app.cloud.providers.groq.Groq"), \
-         patch("app.cloud.providers.anthropic.Anthropic"):
+    with patch("app.cloud.providers.GroqProvider"), \
+         patch("app.cloud.providers.AnthropicProvider"):
         manager = ProviderManager(settings)
         assert manager is not None
 

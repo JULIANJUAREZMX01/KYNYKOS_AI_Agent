@@ -22,7 +22,9 @@ def settings():
 @pytest.fixture
 def agent_loop(settings):
     """Agent loop instance"""
-    return AgentLoop(settings)
+    from app.cloud.providers import ProviderManager
+    mock_provider = MagicMock(spec=ProviderManager)
+    return AgentLoop(settings, mock_provider)
 
 
 @pytest.fixture
@@ -40,31 +42,19 @@ def agent_context():
 @pytest.mark.asyncio
 async def test_agent_loop_basic(agent_loop, agent_context):
     """Test basic agent loop processing"""
-    # Mock LLM provider
-    mock_llm = AsyncMock()
-    mock_llm.call = AsyncMock(return_value={
-        "content": "I'm doing well, thanks for asking!",
-        "model": "test-model"
+    # Mock the LLM call inside the provider manager
+    agent_loop.provider_manager.get_provider.return_value.call = AsyncMock(return_value={
+        "text": "I'm doing well, thanks for asking!",
+        "tool_calls": []
     })
 
-    # Mock tools
-    mock_tools = AsyncMock()
-
-    # Mock memory
-    mock_memory = AsyncMock()
-    mock_memory.append_session = AsyncMock()
-
     # Process message
-    response = await agent_loop.process_message(
-        agent_context,
-        llm_provider=mock_llm,
-        tools=mock_tools,
-        memory=mock_memory
-    )
+    response = await agent_loop.process_message(agent_context)
 
     # Verify response
     assert response == "I'm doing well, thanks for asking!"
-    assert mock_memory.append_session.called
+    assert len(agent_context.messages) == 2
+    assert agent_context.messages[-1].role == "assistant"
 
 
 @pytest.mark.asyncio
