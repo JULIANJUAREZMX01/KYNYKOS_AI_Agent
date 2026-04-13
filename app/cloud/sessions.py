@@ -1,6 +1,7 @@
 """Session management - persist and load conversations"""
 
 import json
+import aiofiles
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
@@ -25,8 +26,8 @@ class SessionManager:
             session_file = self.sessions_dir / f"{ctx.session_id}.jsonl"
 
             # Append session context as JSON line
-            with open(session_file, "a", encoding="utf-8") as f:
-                f.write(json.dumps(ctx.to_dict()) + "\n")
+            async with aiofiles.open(session_file, "a", encoding="utf-8") as f:
+                await f.write(json.dumps(ctx.to_dict()) + "\n")
 
             logger.info(f"Session saved: {ctx.session_id}")
             return True
@@ -45,8 +46,8 @@ class SessionManager:
                 return None
 
             # Read last line (most recent state)
-            with open(session_file, "r", encoding="utf-8") as f:
-                lines = f.readlines()
+            async with aiofiles.open(session_file, "r", encoding="utf-8") as f:
+                lines = await f.readlines()
 
             if not lines:
                 return None
@@ -83,8 +84,8 @@ class SessionManager:
                 reverse=True,
             )[:limit]:
                 try:
-                    with open(session_file, "r", encoding="utf-8") as f:
-                        lines = f.readlines()
+                    async with aiofiles.open(session_file, "r", encoding="utf-8") as f:
+                        lines = await f.readlines()
 
                     if lines:
                         last_line = json.loads(lines[-1])
@@ -137,8 +138,8 @@ class SessionManager:
                 return None
 
             if format == "json":
-                with open(session_file, "r", encoding="utf-8") as f:
-                    lines = f.readlines()
+                async with aiofiles.open(session_file, "r", encoding="utf-8") as f:
+                    lines = await f.readlines()
 
                 # Convert JSONL to JSON array
                 sessions_data = [json.loads(line) for line in lines]
@@ -148,8 +149,8 @@ class SessionManager:
                 import csv
                 import io
 
-                with open(session_file, "r", encoding="utf-8") as f:
-                    lines = f.readlines()
+                async with aiofiles.open(session_file, "r", encoding="utf-8") as f:
+                    lines = await f.readlines()
 
                 sessions_data = [json.loads(line) for line in lines]
 
