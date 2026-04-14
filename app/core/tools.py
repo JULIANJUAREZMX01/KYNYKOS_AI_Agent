@@ -481,9 +481,7 @@ class ToolExecutor:
                         # Format as markdown table
                         header = " | ".join(columns)
                         separator = " | ".join(["---"] * len(columns))
-                        data = []
-                        for row in rows:
-                            data.append(" | ".join(str(val) for val in row))
+                        data = [" | ".join([str(val) for val in row]) for row in rows]
                         
                         table = f"{header}\n{separator}\n" + "\n".join(data)
                         return f"✅ **Resultados (Top 20)**:\n\n{table}"
