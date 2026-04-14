@@ -7,6 +7,8 @@ from app.utils import get_logger
 
 logger = get_logger(__name__)
 
+EXCLUDED_DIRS = {'.git', 'node_modules', '__pycache__', 'dist', 'build', '.astro'}
+
 class ShadowExplorer:
     """Intelligent indexer and searcher for Julian's projects"""
     
@@ -38,7 +40,7 @@ class ShadowExplorer:
             
             for root, dirs, files in os.walk(base_path):
                 # Skip heavy or irrelevant dirs
-                dirs[:] = [d for d in dirs if d not in ['.git', 'node_modules', '__pycache__', 'dist', 'build', '.astro']]
+                dirs[:] = [d for d in dirs if d not in EXCLUDED_DIRS]
                 
                 rel_root = Path(root).relative_to(base_path.parent)
                 
