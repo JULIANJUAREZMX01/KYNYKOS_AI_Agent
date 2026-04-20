@@ -103,3 +103,9 @@
 - **Estilo**: Perro guardián (Cínico, Directo, Técnico). 🐕
 - **Autonomía**: Soberanía técnica total sobre la infraestructura local.
 - **Rol**: El cerebro ejecutor de Julian Juarez.
+
+## Test Implementation: HVAC Triage Skill
+- Added unit tests for `app/skills/hvac_triage.py` in `tests/test_hvac_triage.py`.
+- Covered `detect_hvac_issue`, `generate_hvac_response`, and `get_ticket_priority`.
+- Verified support for keywords like "no enfría", "ruido", "gotea", "no enciende", and edge cases like case insensitivity and unknown issues within HVAC context.
+- Ensured proper cleanup and isolation by using `unittest.TestCase`.
