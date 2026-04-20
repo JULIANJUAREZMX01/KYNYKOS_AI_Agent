@@ -249,7 +249,7 @@ async def send_alert(message_text: str, settings: Settings) -> bool:
 
 async def start_telegram_bot(settings: Settings) -> None:
     """
-    Inicia el bot con drop_pending_updates=True para evitar el error:
+    Inicia el bot configurando drop_pending_updates para evitar el error:
     'Conflict: terminated by other getUpdates request'
     Esto ocurre cuando hay dos instancias corriendo (KynicOS + KYNYKOS_AI_Agent).
     """
@@ -276,15 +276,15 @@ async def start_telegram_bot(settings: Settings) -> None:
         await _app.start()
 
         # ⚠️ drop_pending_updates=True es el fix para el Conflict
-        await _app.updater.start_polling(drop_pending_updates=True)
-        logger.info("🟢 [Telegram] Bot polling started (drop_pending_updates=True)")
+        await _app.updater.start_polling(drop_pending_updates=settings.telegram_drop_pending_updates)
+        logger.info(f"🟢 [Telegram] Bot polling started (drop_pending_updates={settings.telegram_drop_pending_updates})")
 
         # Notificar al usuario que el bot está listo
         try:
             persona_name = "KYNIKOS"
             await _app.bot.send_message(
                 chat_id=settings.telegram_user_id,
-                text=f"🐕 **{persona_name}** reconectado y operativo.\n`drop_pending_updates=True` — conflicto resuelto.",
+                text=f"🐕 **{persona_name}** reconectado y operativo.\n`drop_pending_updates={settings.telegram_drop_pending_updates}` — conflicto resuelto.",
                 parse_mode="Markdown",
             )
         except Exception:
