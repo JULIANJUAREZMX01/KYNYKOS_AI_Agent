@@ -65,6 +65,10 @@ class Settings(BaseSettings):
     twilio_whatsapp_from: str = "+14155238886"
     twilio_whatsapp_to: Optional[str] = None
 
+    # ── WhatsApp Evolution API (Open Source) ──────────────────
+    evolution_api_url: str = "http://localhost:8080"
+    evolution_api_key: Optional[str] = None
+
     # ── Stripe Connect (Fase 2 — pagos) ───────────────────────
     stripe_secret_key: Optional[str] = None
     stripe_publishable_key: Optional[str] = None
