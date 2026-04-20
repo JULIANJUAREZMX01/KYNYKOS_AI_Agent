@@ -11,7 +11,6 @@ class Persona:
     tone: str = "technical"
 
 # Cargar SOUL.md como base para KYNIKOS
-import os
 from pathlib import Path
 
 def _load_soul() -> str:
