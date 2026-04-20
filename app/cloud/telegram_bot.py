@@ -7,7 +7,6 @@ Fix críticos incluidos:
   4. Comandos: /start, /reset, /status, /persona
 """
 
-import asyncio
 from typing import Optional
 from pathlib import Path
 from telegram import Update
