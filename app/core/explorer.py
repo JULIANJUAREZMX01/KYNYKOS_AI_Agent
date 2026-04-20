@@ -42,40 +42,51 @@ class ShadowExplorer:
                 # Skip heavy or irrelevant dirs
                 dirs[:] = [d for d in dirs if d not in EXCLUDED_DIRS]
                 
-                rel_root = Path(root).relative_to(base_path.parent)
-                
-                for file in files:
-                    if file.endswith(('.py', '.js', '.ts', '.rs', '.go', '.md', '.sql', '.env', '.toml')):
-                        file_path = Path(root) / file
-                        try:
-                            stats = file_path.stat()
-                            new_index["files"].append({
-                                "name": file,
-                                "path": str(file_path),
-                                "size": stats.st_size,
-                                "ext": file_path.suffix
-                            })
-                        except Exception:
-                            continue
-                
-                # Check for project roots (README, pyproject, etc)
-                if 'README.md' in files or 'pyproject.toml' in files or 'package.json' in files:
-                    proj_name = Path(root).name
-                    new_index["projects"][proj_name] = {
-                        "path": str(root),
-                        "type": "python/js" if 'pyproject.toml' in files or 'package.json' in files else "generic"
-                    }
+                self._process_files(root, files, new_index["files"])
+                self._detect_projects(root, files, new_index["projects"])
             
             await asyncio.sleep(0.01) # Cooperate with event loop
 
+        self._save_index(new_index)
+        self.index_data = new_index
+        self.is_indexing = False
+
+        logger.info(f"✅ ShadowExplorer: Indexación completada ({len(new_index['files'])} archivos).")
+        return f"✅ Indexación completada. Detecté {len(new_index['projects'])} proyectos y {len(new_index['files'])} archivos de interés."
+
+    def _process_files(self, root: str, files: List[str], index_files: List[Dict[str, Any]]):
+        """Processes files in a directory and adds them to the index if they match criteria."""
+        allowed_extensions = ('.py', '.js', '.ts', '.rs', '.go', '.md', '.sql', '.env', '.toml')
+        for file in files:
+            if file.endswith(allowed_extensions):
+                file_path = Path(root) / file
+                try:
+                    stats = file_path.stat()
+                    index_files.append({
+                        "name": file,
+                        "path": str(file_path),
+                        "size": stats.st_size,
+                        "ext": file_path.suffix
+                    })
+                except Exception:
+                    continue
+
+    def _detect_projects(self, root: str, files: List[str], index_projects: Dict[str, Any]):
+        """Detects project roots and adds them to the index."""
+        project_indicators = {'README.md', 'pyproject.toml', 'package.json'}
+        if any(indicator in files for indicator in project_indicators):
+            proj_name = Path(root).name
+            is_managed = 'pyproject.toml' in files or 'package.json' in files
+            index_projects[proj_name] = {
+                "path": str(root),
+                "type": "python/js" if is_managed else "generic"
+            }
+
+    def _save_index(self, new_index: Dict[str, Any]):
+        """Saves the index to the index file."""
         self.index_file.parent.mkdir(parents=True, exist_ok=True)
         with open(self.index_file, "w", encoding="utf-8") as f:
             json.dump(new_index, f, indent=2)
-            
-        self.index_data = new_index
-        self.is_indexing = False
-        logger.info(f"✅ ShadowExplorer: Indexación completada ({len(new_index['files'])} archivos).")
-        return f"✅ Indexación completada. Detecté {len(new_index['projects'])} proyectos y {len(new_index['files'])} archivos de interés."
 
     def search(self, query: str) -> str:
         """Search the index for relevant files/projects"""
