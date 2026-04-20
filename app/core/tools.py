@@ -539,7 +539,7 @@ class ToolExecutor:
             if not _explorer:
                 return "❌ El explorador de sombras no está activo."
                 
-            return _explorer.search(query)
+            return await _explorer.search(query)
         except Exception as e:
             return f"❌ Error en búsqueda inteligente: {e}"
 

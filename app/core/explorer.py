@@ -68,20 +68,26 @@ class ShadowExplorer:
             
             await asyncio.sleep(0.01) # Cooperate with event loop
 
-        self.index_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.index_file, "w", encoding="utf-8") as f:
-            json.dump(new_index, f, indent=2)
+        await asyncio.to_thread(self.index_file.parent.mkdir, parents=True, exist_ok=True)
+
+        def _write_index():
+            with open(self.index_file, "w", encoding="utf-8") as f:
+                json.dump(new_index, f, indent=2)
+
+        await asyncio.to_thread(_write_index)
             
         self.index_data = new_index
         self.is_indexing = False
         logger.info(f"✅ ShadowExplorer: Indexación completada ({len(new_index['files'])} archivos).")
         return f"✅ Indexación completada. Detecté {len(new_index['projects'])} proyectos y {len(new_index['files'])} archivos de interés."
 
-    def search(self, query: str) -> str:
+    async def search(self, query: str) -> str:
         """Search the index for relevant files/projects"""
         if not self.index_data and self.index_file.exists():
-            with open(self.index_file, "r", encoding="utf-8") as f:
-                self.index_data = json.load(f)
+            def _load_index():
+                with open(self.index_file, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            self.index_data = await asyncio.to_thread(_load_index)
                 
         if not self.index_data:
             return "❌ No hay un índice construido. Usa `rebuild_index` primero."
