@@ -10,7 +10,6 @@ Acciones:
   - list: lista todos los skills y su estado
 """
 
-import asyncio
 from typing import Optional
 from app.utils import get_logger
 
