@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     telegram_user_id: str = "8247886073"
     # Chat ID del técnico de mantenimiento (escalación HVAC)
     tech_telegram_chat_id: Optional[str] = None
+    telegram_drop_pending_updates: bool = True
 
     # ── LLM — Groq (PRIMARIO, gratuito) ───────────────────────
     groq_api_key: str
