@@ -16,7 +16,7 @@ Flujo:
 import asyncio
 from typing import Optional
 import httpx
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from app.utils import get_logger
