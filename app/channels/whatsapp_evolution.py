@@ -138,11 +138,14 @@ def init_whatsapp(settings) -> None:
     """Inicializa el canal WhatsApp según disponibilidad."""
     global _evolution, _twilio
 
-    evo_url = getattr(settings, "evolution_api_url", None) or "http://localhost:8080"
-    evo_key = getattr(settings, "evolution_api_key", None) or "kynikos-evo-key"
+    evo_url = getattr(settings, "evolution_api_url", "http://localhost:8080")
+    evo_key = getattr(settings, "evolution_api_key", None)
 
-    _evolution = EvolutionClient(evo_url, evo_key)
-    logger.info(f"[WhatsApp] Evolution API configurado en {evo_url}")
+    if evo_key:
+        _evolution = EvolutionClient(evo_url, evo_key)
+        logger.info(f"[WhatsApp] Evolution API configurado en {evo_url}")
+    else:
+        logger.warning("[WhatsApp] Evolution API Key no proporcionada. Canal Evolution omitido.")
 
     # Twilio como fallback secundario
     if getattr(settings, "twilio_account_sid", None) and getattr(settings, "twilio_auth_token", None):
