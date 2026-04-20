@@ -1,6 +1,5 @@
 """WhatsApp bridge integration via Twilio for Nanobot"""
 
-import asyncio
 from typing import Optional
 
 from fastapi import APIRouter, Form, Request, Response
