@@ -1,6 +1,7 @@
 """Persistent memory management for Nanobot"""
 
 import json
+import aiofiles
 from pathlib import Path
 from typing import Any, Optional, Dict, List
 from datetime import datetime
@@ -19,21 +20,23 @@ class Memory:
         self.memory_file.parent.mkdir(parents=True, exist_ok=True)
         logger.info(f"Memory initialized: {self.memory_file}")
 
-    def load(self) -> Dict[str, Any]:
+    async def load(self) -> Dict[str, Any]:
         """Load memory from MEMORY.md"""
         try:
             if self.memory_file.exists():
-                content = self.memory_file.read_text(encoding="utf-8")
+                async with aiofiles.open(self.memory_file, mode="r", encoding="utf-8") as f:
+                    content = await f.read()
                 return {"raw": content}
             return {}
         except Exception as e:
             logger.error(f"Error loading memory: {e}")
             return {}
 
-    def save(self, content: str) -> None:
+    async def save(self, content: str) -> None:
         """Save memory to MEMORY.md"""
         try:
-            self.memory_file.write_text(content, encoding="utf-8")
+            async with aiofiles.open(self.memory_file, mode="w", encoding="utf-8") as f:
+                await f.write(content)
             logger.debug("Memory saved")
         except Exception as e:
             logger.error(f"Error saving memory: {e}")
@@ -48,7 +51,7 @@ class Memory:
 
             session_file = sessions_dir / f"{session_id}.jsonl"
 
-            with open(session_file, "a", encoding="utf-8") as f:
+            async with aiofiles.open(session_file, mode="a", encoding="utf-8") as f:
                 for msg in messages:
                     try:
                         # Handle Message objects
@@ -57,7 +60,7 @@ class Memory:
                         else:
                             msg_data = msg
 
-                        f.write(json.dumps(msg_data) + "\n")
+                        await f.write(json.dumps(msg_data) + "\n")
                     except Exception as e:
                         logger.error(f"Error serializing message: {e}")
 
@@ -66,11 +69,12 @@ class Memory:
         except Exception as e:
             logger.error(f"Error appending session: {e}")
 
-    def get_memory_context(self) -> str:
+    async def get_memory_context(self) -> str:
         """Get memory content for LLM context"""
         try:
             if self.memory_file.exists():
-                return self.memory_file.read_text(encoding="utf-8")
+                async with aiofiles.open(self.memory_file, mode="r", encoding="utf-8") as f:
+                    return await f.read()
             return ""
         except Exception as e:
             logger.error(f"Error reading memory: {e}")
