@@ -335,9 +335,12 @@ class ToolExecutor:
 
     async def _list_projects(self, args: Dict[str, Any]) -> str:
         """List main projects in sistemas directory"""
-        try:
+        def _get_projects():
             base_path = Path("C:/Users/QUINTANA/sistemas")
             projects = []
+            if not base_path.exists():
+                return "❌ El directorio de sistemas no existe."
+
             for item in base_path.iterdir():
                 if item.is_dir() and not item.name.startswith("."):
                     # Try to get a brief description from README if it exists
@@ -348,8 +351,10 @@ class ToolExecutor:
                         desc = next((l for l in lines if l.strip() and not l.startswith("#")), "")[:100]
                     
                     projects.append(f"- **{item.name}**: {desc}")
-            
             return "\n".join(projects)
+
+        try:
+            return await asyncio.to_thread(_get_projects)
         except Exception as e:
             return f"❌ Error listando proyectos: {str(e)}"
 
