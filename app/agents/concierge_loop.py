@@ -22,7 +22,6 @@ El nanobot es su propio framework.
 import asyncio
 import re
 from typing import Optional, List, Dict
-from pathlib import Path
 
 from app.core.loop import AgentLoop
 from app.core.context import AgentContext
