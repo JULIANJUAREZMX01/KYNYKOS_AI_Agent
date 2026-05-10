@@ -22,17 +22,23 @@ class LogSentinel:
 
     def add_watch(self, file_path: str):
         """Add a log file to the monitor list"""
-        path = Path(file_path).resolve()
-        if path.exists():
-            # Start from the end of the file
-            self.watch_list[str(path)] = path.stat().st_size
-            logger.info(f"🐕 Centinela vigilando: {file_path}")
-        else:
-            # If it doesn't exist, create it or wait for it
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.touch()
-            self.watch_list[str(path)] = 0
-            logger.info(f"🐕 Centinela esperando archivo: {file_path}")
+        try:
+            path = Path(file_path).resolve()
+            if path.exists():
+                if path.is_dir():
+                    logger.warning(f"⚠️ {file_path} es un directorio, no se puede vigilar.")
+                    return
+                # Start from the end of the file
+                self.watch_list[str(path)] = path.stat().st_size
+                logger.info(f"🐕 Centinela vigilando: {file_path}")
+            else:
+                # If it doesn't exist, create it or wait for it
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.touch()
+                self.watch_list[str(path)] = 0
+                logger.info(f"🐕 Centinela esperando archivo: {file_path}")
+        except Exception as e:
+            logger.error(f"❌ Error al agregar vigilancia para {file_path}: {e}")
 
     async def run(self):
         """Main loop for log monitoring"""

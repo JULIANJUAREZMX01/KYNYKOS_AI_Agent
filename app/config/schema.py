@@ -9,6 +9,9 @@ import json
 class ContractSettings(BaseSettings):
     """Settings for Sentinel and contract monitoring"""
     sentinel_enabled: bool = False
+    log_check_interval: int = 60
+    alert_on_failure: bool = True
+    auto_healing_enabled: bool = False
 
     class Config:
         env_prefix = "SENTINEL_"
