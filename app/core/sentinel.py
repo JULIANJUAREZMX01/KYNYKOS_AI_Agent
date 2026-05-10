@@ -76,7 +76,8 @@ class LogSentinel:
                         
                         # Analyze lines
                         for line in new_lines:
-                            if any(trigger in line.upper() for trigger in ["ERROR", "CRITICAL", "EXCEPTION", "FAILED"]):
+                            line_upper = line.upper()
+                            if any(trigger in line_upper for trigger in ["ERROR", "CRITICAL", "EXCEPTION", "FAILED"]):
                                 # Send alert to all configured channels if enabled
                                 if self.contract.alert_on_failure:
                                     message = f"Fallo detectado en {path.name}:\n`{line.strip()[:200]}`"
