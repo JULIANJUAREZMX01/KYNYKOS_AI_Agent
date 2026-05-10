@@ -115,10 +115,24 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# ── CORS Configuration ────────────────────────────────────────────────────────
+# Load minimal settings for CORS. If required fields are missing, fallback to safe defaults.
+try:
+    _temp_settings = Settings()
+    _cors_origins = _temp_settings.cors_origins
+except Exception:
+    _cors_origins = []
+
+# Security: If using wildcard or no specific origins, credentials MUST be disabled.
+_allow_credentials = True
+if not _cors_origins or "*" in _cors_origins:
+    _cors_origins = ["*"]
+    _allow_credentials = False
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=_cors_origins,
+    allow_credentials=_allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )
