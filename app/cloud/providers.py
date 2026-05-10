@@ -15,9 +15,8 @@ Estrategia anti-413:
 """
 
 import asyncio
-import re
 from typing import List, Dict, Any, Optional
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.config import Settings
 from app.utils import get_logger
