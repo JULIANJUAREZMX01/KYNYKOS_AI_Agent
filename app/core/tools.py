@@ -134,10 +134,14 @@ class ToolExecutor:
         try:
             logger.info(f"Executing: {command[:100]}")
 
+            # Use shlex.split to safely parse the command into a list of arguments
+            # posix=False is important for Windows compatibility (preserves backslashes)
+            cmd_args = shlex.split(command, posix=(os.name != 'nt'))
+
             result = await asyncio.to_thread(
                 subprocess.run,
-                command,
-                shell=True,
+                cmd_args,
+                shell=False,
                 capture_output=True,
                 text=True,
                 timeout=30,
@@ -262,7 +266,8 @@ class ToolExecutor:
             logger.info(f"Git: {operation}")
 
             # Safely split the operation into arguments
-            git_args = shlex.split(operation)
+            # posix=False is important for Windows compatibility
+            git_args = shlex.split(operation, posix=(os.name != 'nt'))
             cmd = ["git"] + git_args
 
             result = await asyncio.to_thread(
@@ -397,16 +402,16 @@ class ToolExecutor:
         """Get PC performance stats (CPU, RAM, Disk)"""
         try:
             # CPU
-            cpu_cmd = "powershell -NoProfile -Command \"Get-CimInstance Win32_Processor | Select-Object -ExpandProperty LoadPercentage\""
-            cpu_load = await asyncio.to_thread(subprocess.check_output, cpu_cmd, shell=True, text=True)
+            cpu_cmd = ["powershell", "-NoProfile", "-Command", "Get-CimInstance Win32_Processor | Select-Object -ExpandProperty LoadPercentage"]
+            cpu_load = await asyncio.to_thread(subprocess.check_output, cpu_cmd, shell=False, text=True)
             
             # RAM
-            ram_cmd = "powershell -NoProfile -Command \"$mem = Get-CimInstance Win32_OperatingSystem; '{0:N2} GB libre / {1:N2} GB total' -f ($mem.FreePhysicalMemory / 1MB), ($mem.TotalVisibleMemorySize / 1MB)\""
-            ram_stats = await asyncio.to_thread(subprocess.check_output, ram_cmd, shell=True, text=True)
+            ram_cmd = ["powershell", "-NoProfile", "-Command", "$mem = Get-CimInstance Win32_OperatingSystem; '{0:N2} GB libre / {1:N2} GB total' -f ($mem.FreePhysicalMemory / 1MB), ($mem.TotalVisibleMemorySize / 1MB)"]
+            ram_stats = await asyncio.to_thread(subprocess.check_output, ram_cmd, shell=False, text=True)
             
             # Disk
-            disk_cmd = "powershell -NoProfile -Command \"Get-CimInstance Win32_LogicalDisk -Filter 'DeviceID=''C:''' | Select-Object @{n='Free';e={'{0:N2} GB' -f ($_.FreeSpace / 1GB)}}, @{n='Size';e={'{0:N2} GB' -f ($_.Size / 1GB)}} | Format-List\""
-            disk_stats = await asyncio.to_thread(subprocess.check_output, disk_cmd, shell=True, text=True)
+            disk_cmd = ["powershell", "-NoProfile", "-Command", "Get-CimInstance Win32_LogicalDisk -Filter 'DeviceID=''C:''' | Select-Object @{n='Free';e={'{0:N2} GB' -f ($_.FreeSpace / 1GB)}}, @{n='Size';e={'{0:N2} GB' -f ($_.Size / 1GB)}} | Format-List"]
+            disk_stats = await asyncio.to_thread(subprocess.check_output, disk_cmd, shell=False, text=True)
 
             return f"📊 **Status de KYNIKOS PC**:\n- **CPU**: {cpu_load.strip()}%\n- **RAM**: {ram_stats.strip()}\n- **Disco (C:)**:\n{disk_stats.strip()}"
         except Exception as e:
@@ -628,8 +633,8 @@ class ToolExecutor:
             
             result = await asyncio.to_thread(
                 subprocess.run,
-                f"python {script_path}",
-                shell=True,
+                ["python", str(script_path)],
+                shell=False,
                 capture_output=True,
                 text=True,
                 cwd=script_path.parent.parent.parent # Run from project root
@@ -708,13 +713,13 @@ class ToolExecutor:
             if target in ["all", "code"]:
                 # Attempt to pull from git
                 logger.info("🔧 KYNIKOS: Iniciando auto-actualización vía Git...")
-                result = await asyncio.to_thread(subprocess.run, "git pull origin main", shell=True, capture_output=True, text=True)
+                result = await asyncio.to_thread(subprocess.run, ["git", "pull", "origin", "main"], shell=False, capture_output=True, text=True)
                 reports.append(f"Git: {result.stdout.strip() or 'Al día'}")
             
             if target in ["all", "deps"]:
                 # Check/install dependencies
                 logger.info("🔧 KYNIKOS: Verificando dependencias...")
-                result = await asyncio.to_thread(subprocess.run, "pip install -r requirements.txt", shell=True, capture_output=True, text=True)
+                result = await asyncio.to_thread(subprocess.run, ["pip", "install", "-r", "requirements.txt"], shell=False, capture_output=True, text=True)
                 reports.append("Dependencias verificadas.")
 
             if target in ["all", "index"]:
