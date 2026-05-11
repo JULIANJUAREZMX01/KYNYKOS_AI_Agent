@@ -17,7 +17,6 @@ Usage:
 
 from pathlib import Path
 import json
-from typing import Any
 
 
 def read_nanobot_memory(key: str = "profile") -> dict:
