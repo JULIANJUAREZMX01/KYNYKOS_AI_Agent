@@ -4,7 +4,7 @@ import asyncio
 from pathlib import Path
 import zipfile
 import tempfile
-from datetime import datetime
+from datetime import datetime, timezone
 from app.config import Settings
 from app.utils import get_logger
 
@@ -40,40 +40,53 @@ class BackupService:
         if not self.s3_client:
             logger.warning("S3 not configured, skipping backup")
             return False
-        
+
+        tmp_path = None
         try:
             workspace_path = Path("./workspace")
             if not workspace_path.exists():
                 logger.warning("Workspace directory not found")
                 return False
-            
+
             # Create zip file
             with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp:
                 tmp_path = Path(tmp.name)
-            
-            with zipfile.ZipFile(tmp_path, "w", zipfile.ZIP_DEFLATED) as zf:
-                for file_path in workspace_path.rglob("*"):
-                    if file_path.is_file():
-                        arcname = file_path.relative_to(workspace_path.parent)
-                        zf.write(file_path, arcname)
-            
+
+            # Offload CPU/IO bound ZIP creation to a thread
+            await asyncio.to_thread(self._create_zip, workspace_path, tmp_path)
+
             # Upload to S3
-            timestamp = datetime.utcnow().isoformat()
+            timestamp = datetime.now(timezone.utc).isoformat()
             s3_key = f"backups/workspace_{timestamp}.zip"
-            
-            self.s3_client.upload_file(
+
+            # Offload blocking S3 upload to a thread
+            await asyncio.to_thread(
+                self.s3_client.upload_file,
                 str(tmp_path),
                 self.settings.s3_bucket,
                 s3_key
             )
-            
+
             logger.info(f"Workspace backed up to S3: {s3_key}")
-            tmp_path.unlink()
             return True
-            
+
         except Exception as e:
             logger.error(f"Backup failed: {e}")
             return False
+        finally:
+            if tmp_path and tmp_path.exists():
+                try:
+                    tmp_path.unlink()
+                except Exception as e:
+                    logger.error(f"Failed to delete temporary backup file: {e}")
+
+    def _create_zip(self, workspace_path: Path, tmp_path: Path):
+        """Synchronous helper for ZIP creation to be run in a thread"""
+        with zipfile.ZipFile(tmp_path, "w", zipfile.ZIP_DEFLATED) as zf:
+            for file_path in workspace_path.rglob("*"):
+                if file_path.is_file():
+                    arcname = file_path.relative_to(workspace_path.parent)
+                    zf.write(file_path, arcname)
     
     async def scheduled_backup(self, interval_hours: int = 6):
         """Run backups on schedule"""
