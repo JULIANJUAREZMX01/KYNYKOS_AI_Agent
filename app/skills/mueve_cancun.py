@@ -34,3 +34,10 @@ def format_route_response(route_info) -> str:
 def get_generic_transport_response() -> str:
     return (f"Para moverte en Cancún el transporte público cuesta **$13-15 MXN** 🚌\n\n"
             f"Dime: ¿de dónde a dónde quieres ir?\n\nApp gratuita: {APP_URL}")
+
+def run(message: str) -> str:
+    """Entry point for SkillEngine."""
+    route_info = get_route_info(message)
+    if route_info:
+        return format_route_response(route_info)
+    return get_generic_transport_response()

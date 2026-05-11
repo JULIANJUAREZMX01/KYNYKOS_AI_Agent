@@ -4,6 +4,7 @@ from app.skills.mueve_cancun import (
     get_route_info,
     format_route_response,
     get_generic_transport_response,
+    run,
     POPULAR_ROUTES,
     APP_URL
 )
@@ -57,3 +58,15 @@ def test_get_generic_transport_response():
     assert "**$13-15 MXN**" in response
     assert APP_URL in response
     assert "🚌" in response
+
+def test_run_known_route():
+    """Test run function with a known route."""
+    response = run("aeropuerto centro")
+    assert "Aeropuerto → Centro" in response
+    assert "ADO" in response
+
+def test_run_unknown_route():
+    """Test run function with an unknown route returns generic response."""
+    response = run("bus a algún lado")
+    assert "Para moverte en Cancún" in response
+    assert APP_URL in response
