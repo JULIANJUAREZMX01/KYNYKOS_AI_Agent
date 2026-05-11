@@ -115,10 +115,22 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Configuración de CORS segura
+# Intentamos cargar configuraciones para obtener cors_origins, con fallback seguro si fallan variables obligatorias
+try:
+    _base_settings = Settings()
+    _cors_origins = _base_settings.cors_origins
+except Exception:
+    _cors_origins = ["*"]
+
+# Seguridad: allow_credentials=True con allow_origins=["*"] es inseguro y bloqueado por la mayoría de navegadores.
+# Si se detecta un wildcard (*), desactivamos credenciales para mantener el cumplimiento de seguridad.
+_allow_credentials = False if "*" in _cors_origins else True
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=_cors_origins,
+    allow_credentials=_allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )

@@ -91,6 +91,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     port: int = 8000
     host: str = "0.0.0.0"
+    cors_origins: List[str] = Field(default_factory=lambda: ["*"])
 
     # ── Sentinel (sub-settings) ───────────────────────────────
     @property
