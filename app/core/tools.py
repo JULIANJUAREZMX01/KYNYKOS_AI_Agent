@@ -3,6 +3,8 @@ import subprocess
 import shlex
 import json
 import os
+import re
+import sys
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 from urllib.parse import urlparse
@@ -125,19 +127,65 @@ class ToolExecutor:
         if not command:
             return "❌ Comando vacío"
 
-        # Safety check - block dangerous commands (UNLESS OVERDRIVE IS ON)
+        # Safety check - block dangerous commands and chaining metacharacters (UNLESS OVERDRIVE IS ON)
         if not ctx.overdrive_mode:
-            dangerous = ["rm -rf", "dd if=", "format", "shutdown", "reboot"]
+            # Reject metacharacters that allow command chaining, execution, or redirection:
+            # ;, &&, ||, |, `, $(, >, <
+            chaining_pattern = re.compile(r";|&&|\|\||\||`|\$\(|>|<")
+            if chaining_pattern.search(command):
+                return "❌ Comando peligroso bloqueado: encadenamiento o redirección no permitidos (Activa el OVERDRIVE para forzar)"
+
+            dangerous = ["dd if=", "format", "shutdown", "reboot"]
             if any(d in command for d in dangerous):
                 return "❌ Comando peligroso bloqueado (Activa el OVERDRIVE para forzar)"
 
+            # Check recursive force removal variants (rm with -r and -f in any order or long forms)
+            rm_rf_pattern = re.compile(
+                r"\brm\b\s+(?:-[a-zA-Z0-9]*[rR][a-zA-Z0-9]*\s+-[a-zA-Z0-9]*f[a-zA-Z0-9]*|"
+                r"-[a-zA-Z0-9]*f[a-zA-Z0-9]*\s+-[a-zA-Z0-9]*[rR][a-zA-Z0-9]*|"
+                r"-[a-zA-Z0-9]*([rR][a-zA-Z0-9]*f|f[a-zA-Z0-9]*[rR])[a-zA-Z0-9]*|"
+                r".*--(?:recursive.*--force|force.*--recursive)|"
+                r".*(?:-[a-zA-Z0-9]*[rR][a-zA-Z0-9]*\s+--force|--force\s+-[a-zA-Z0-9]*[rR][a-zA-Z0-9]*)|"
+                r".*(?:-[a-zA-Z0-9]*f[a-zA-Z0-9]*\s+--recursive|--recursive\s+-[a-zA-Z0-9]*f[a-zA-Z0-9]*))"
+            )
+            if rm_rf_pattern.search(command):
+                return "❌ Comando peligroso bloqueado (Activa el OVERDRIVE para forzar)"
+
         try:
-            logger.info(f"Executing: {command[:100]}")
+            cmd_list = shlex.split(command)
+        except ValueError as e:
+            return f"❌ Error de sintaxis en comando: {str(e)}"
+
+        if not cmd_list:
+            return "❌ Comando vacío"
+
+        # Additional token check for rm recursive force when overdrive is off
+        if not ctx.overdrive_mode and cmd_list[0] == "rm":
+            has_r = False
+            has_f = False
+            for arg in cmd_list[1:]:
+                if arg == "--":
+                    break
+                if arg.startswith("--"):
+                    if arg == "--recursive":
+                        has_r = True
+                    elif arg == "--force":
+                        has_f = True
+                elif arg.startswith("-") and len(arg) > 1:
+                    if "r" in arg.lower():
+                        has_r = True
+                    if "f" in arg.lower():
+                        has_f = True
+            if has_r and has_f:
+                return "❌ Comando peligroso bloqueado (Activa el OVERDRIVE para forzar)"
+
+        try:
+            logger.info(f"Executing: {cmd_list[:10]}")
 
             result = await asyncio.to_thread(
                 subprocess.run,
-                command,
-                shell=True,
+                cmd_list,
+                shell=False,
                 capture_output=True,
                 text=True,
                 timeout=30,
@@ -359,14 +407,14 @@ class ToolExecutor:
 
         if action == "shutdown":
             logger.info("KYNIKOS: Inicando apagado del sistema...")
-            os.system("shutdown /s /t 60 /c \"KYNIKOS: Apagado remoto solicitado por Julian\"")
+            subprocess.run(["shutdown", "/s", "/t", "60", "/c", "KYNIKOS: Apagado remoto solicitado por Julian"], shell=False)
             return "🚀 Comando de apagado enviado. La PC se apagará en 60 segundos. Adiós, Julian."
         elif action == "restart":
             logger.info("KYNIKOS: Iniciando reinicio del sistema...")
-            os.system("shutdown /r /t 60 /c \"KYNIKOS: Reinicio remoto solicitado por Julian\"")
+            subprocess.run(["shutdown", "/r", "/t", "60", "/c", "KYNIKOS: Reinicio remoto solicitado por Julian"], shell=False)
             return "🔄 Comando de reinicio enviado. La PC se reiniciará en 60 segundos."
         elif action == "abort":
-            os.system("shutdown /a")
+            subprocess.run(["shutdown", "/a"], shell=False)
             return "✅ Apagado/Reinicio abortado. KYNIKOS sigue en guardia."
         else:
             return "❌ Acción desconocida. Usa: shutdown, restart, abort."
@@ -628,8 +676,8 @@ class ToolExecutor:
             
             result = await asyncio.to_thread(
                 subprocess.run,
-                f"python {script_path}",
-                shell=True,
+                [sys.executable, str(script_path)],
+                shell=False,
                 capture_output=True,
                 text=True,
                 cwd=script_path.parent.parent.parent # Run from project root
