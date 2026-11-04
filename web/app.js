@@ -9,18 +9,24 @@ function showTab(tabName) {
         tab.classList.add('hidden');
     });
     
-    // Deactivate all buttons
+    // Deactivate all buttons & reset aria-selected
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.classList.remove('border-blue-500');
         btn.classList.add('border-transparent');
+        btn.setAttribute('aria-selected', 'false');
     });
     
     // Show selected tab
-    document.getElementById(`${tabName}-tab`).classList.remove('hidden');
+    const targetTab = document.getElementById(`${tabName}-tab`);
+    if (targetTab) targetTab.classList.remove('hidden');
     
-    // Activate button
-    event.target.classList.add('border-blue-500');
-    event.target.classList.remove('border-transparent');
+    // Activate matching button
+    const activeBtn = document.getElementById(`tab-${tabName}`);
+    if (activeBtn) {
+        activeBtn.classList.add('border-blue-500');
+        activeBtn.classList.remove('border-transparent');
+        activeBtn.setAttribute('aria-selected', 'true');
+    }
     
     // Load data
     if (tabName === 'sessions') loadSessions();
@@ -67,17 +73,48 @@ async function loadMemory() {
 
 // Save Memory
 async function saveMemory() {
+    const btn = document.getElementById('save-memory-btn');
+    const status = document.getElementById('memory-status');
+    const originalText = btn ? btn.textContent : '💾 Guardar Memoria';
+
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '⏳ Guardando...';
+    }
+    if (status) {
+        status.textContent = '';
+        status.className = 'text-sm text-gray-400';
+    }
+
     try {
         const content = document.getElementById('memory-text').value;
-        await fetch(`${API_BASE}/memory`, {
+        const res = await fetch(`${API_BASE}/memory`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ content })
         });
-        alert('✅ Memoria guardada');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        if (status) {
+            status.textContent = '✅ Guardado correctamente';
+            status.className = 'text-sm text-green-400 font-medium';
+            setTimeout(() => {
+                if (status.textContent === '✅ Guardado correctamente') {
+                    status.textContent = '';
+                }
+            }, 3000);
+        }
     } catch (error) {
         console.error('Error saving memory:', error);
-        alert('❌ Error guardando memoria');
+        if (status) {
+            status.textContent = '❌ Error guardando memoria';
+            status.className = 'text-sm text-red-400 font-medium';
+        }
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = originalText;
+        }
     }
 }
 
