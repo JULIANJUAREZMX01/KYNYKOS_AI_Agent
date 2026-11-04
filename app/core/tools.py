@@ -301,16 +301,29 @@ class ToolExecutor:
         if not operation:
             return "❌ Operación vacía"
 
-        # Only allow safe git operations
-        safe_ops = ["status", "log", "branch", "diff", "show", "pull", "add", "commit"]
-        if not any(op in operation.lower() for op in safe_ops):
-            return "❌ Operación git no permitida"
+        try:
+            git_args = shlex.split(operation)
+        except ValueError as e:
+            return f"❌ Error de sintaxis en operación git: {str(e)}"
+
+        if not git_args:
+            return "❌ Operación vacía"
+
+        # Only allow whitelisted git sub-commands
+        safe_subcommands = {"status", "log", "branch", "diff", "show", "pull", "add", "commit"}
+        subcommand = git_args[0].lower()
+        if subcommand not in safe_subcommands:
+            return f"❌ Subcomando git no permitido: {subcommand}"
+
+        # Block dangerous flags that permit arbitrary command execution or config override
+        blocked_flags = {"--upload-pack", "--receive-pack", "--exec-path", "-c", "--config"}
+        for arg in git_args[1:]:
+            lower_arg = arg.lower()
+            if any(lower_arg == flag or lower_arg.startswith(f"{flag}=") for flag in blocked_flags):
+                return f"❌ Opción de git no permitida por seguridad: {arg}"
 
         try:
             logger.info(f"Git: {operation}")
-
-            # Safely split the operation into arguments
-            git_args = shlex.split(operation)
             cmd = ["git"] + git_args
 
             result = await asyncio.to_thread(
@@ -756,13 +769,25 @@ class ToolExecutor:
             if target in ["all", "code"]:
                 # Attempt to pull from git
                 logger.info("🔧 KYNIKOS: Iniciando auto-actualización vía Git...")
-                result = await asyncio.to_thread(subprocess.run, "git pull origin main", shell=True, capture_output=True, text=True)
+                result = await asyncio.to_thread(
+                    subprocess.run,
+                    ["git", "pull", "origin", "main"],
+                    shell=False,
+                    capture_output=True,
+                    text=True,
+                )
                 reports.append(f"Git: {result.stdout.strip() or 'Al día'}")
             
             if target in ["all", "deps"]:
                 # Check/install dependencies
                 logger.info("🔧 KYNIKOS: Verificando dependencias...")
-                result = await asyncio.to_thread(subprocess.run, "pip install -r requirements.txt", shell=True, capture_output=True, text=True)
+                result = await asyncio.to_thread(
+                    subprocess.run,
+                    [sys.executable, "-m", "pip", "install", "-r", "requirements.txt"],
+                    shell=False,
+                    capture_output=True,
+                    text=True,
+                )
                 reports.append("Dependencias verificadas.")
 
             if target in ["all", "index"]:
