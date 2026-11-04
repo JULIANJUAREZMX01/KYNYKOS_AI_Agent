@@ -1,6 +1,7 @@
 """Tests for tool executor"""
 
 import pytest
+import sys
 from pathlib import Path
 from app.core.tools import ToolExecutor
 from app.core.context import AgentContext
@@ -41,6 +42,96 @@ async def test_read_file_not_found(tool_executor, agent_context):
         agent_context
     )
     assert "not found" in result.lower()
+
+
+@pytest.mark.asyncio
+async def test_git_operation_legitimate_command(tool_executor, mocker):
+    """Test that safe git operations execute with argument list and shell=False"""
+    mock_result = mocker.MagicMock(returncode=0, stdout="On branch main\n", stderr="")
+    mock_run = mocker.patch("subprocess.run", return_value=mock_result)
+
+    result = await tool_executor.execute(
+        "git_operation",
+        {"operation": "status --short", "repo_path": "/fake/repo"},
+        None
+    )
+    assert "On branch main" in result
+    mock_run.assert_called_once_with(
+        ["git", "status", "--short"],
+        shell=False,
+        cwd="/fake/repo",
+        capture_output=True,
+        text=True,
+        timeout=30
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("operation", [
+    "checkout main",
+    "push origin main",
+    "clone https://github.com/evil/repo",
+    "reset --hard HEAD~1",
+    "clean -fdx",
+])
+async def test_git_operation_rejects_disallowed_subcommands(tool_executor, operation, mocker):
+    """Test that non-whitelisted git subcommands are rejected without running git"""
+    mock_run = mocker.patch("subprocess.run")
+
+    result = await tool_executor.execute(
+        "git_operation",
+        {"operation": operation},
+        None
+    )
+    assert "❌ Subcomando git no permitido" in result
+    mock_run.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("operation", [
+    "status --upload-pack=touch /tmp/pwned",
+    "status --receive-pack=evil",
+    "log --exec-path=/tmp",
+    "status -c core.editor=calc",
+    "diff --config core.editor=calc",
+])
+async def test_git_operation_rejects_dangerous_flags(tool_executor, operation, mocker):
+    """Test that dangerous options/flags are blocked for safe subcommands"""
+    mock_run = mocker.patch("subprocess.run")
+
+    result = await tool_executor.execute(
+        "git_operation",
+        {"operation": operation},
+        None
+    )
+    assert "❌ Opción de git no permitida por seguridad" in result
+    mock_run.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_self_repair_uses_argument_lists_without_shell(tool_executor, mocker):
+    """Test that self_repair runs commands as lists with shell=False"""
+    mock_result = mocker.MagicMock(returncode=0, stdout="OK", stderr="")
+    mock_run = mocker.patch("subprocess.run", return_value=mock_result)
+    mocker.patch.object(tool_executor, "_rebuild_index", return_value="reindexed")
+
+    result = await tool_executor.execute(
+        "self_repair",
+        {"target": "all"},
+        None
+    )
+    assert "Auto-Reparación Completada" in result
+
+    # Check subprocess calls
+    assert mock_run.call_count == 2
+    first_call = mock_run.call_args_list[0]
+    second_call = mock_run.call_args_list[1]
+
+    assert first_call[0][0] == ["git", "pull", "origin", "main"]
+    assert first_call[1]["shell"] is False
+
+    assert second_call[0][0] == [sys.executable, "-m", "pip", "install", "-r", "requirements.txt"]
+    assert second_call[1]["shell"] is False
 
 
 @pytest.mark.asyncio
