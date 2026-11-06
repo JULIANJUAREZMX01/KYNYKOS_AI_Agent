@@ -461,14 +461,32 @@ class ToolExecutor:
             return f"❌ Error obteniendo stats: {e}"
 
     async def _network_scan(self, args: Dict[str, Any]) -> str:
-        """Ping a specific host or list of hosts"""
+        """Ping a specific host or list of hosts with target validation"""
+        import ipaddress
+
         target = args.get("target", "127.0.0.1").strip()
-        
+
+        # Security: validate target against command argument injection or malicious inputs.
+        # Ensure target is a valid IPv4/IPv6 address or a safe hostname without flags/spaces.
+        is_valid = False
         try:
-            # Basic ping command
+            ipaddress.ip_address(target)
+            is_valid = True
+        except ValueError:
+            hostname_pattern = re.compile(
+                r"^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$"
+            )
+            if hostname_pattern.match(target) and not target.startswith("-"):
+                is_valid = True
+
+        if not is_valid:
+            return f"❌ Objetivo inválido: '{target}'. Solo se permiten IPs o hostnames válidos."
+
+        try:
+            # Basic ping command with validated target
             cmd = ["ping", "-n", "1", target]
             result = await asyncio.to_thread(subprocess.run, cmd, shell=False, capture_output=True, text=True)
-            
+
             if result.returncode == 0:
                 return f"🟢 **{target}** está ONLINE."
             else:
