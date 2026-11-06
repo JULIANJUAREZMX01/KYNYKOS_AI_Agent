@@ -9,11 +9,12 @@ function showTab(tabName) {
         tab.classList.add('hidden');
     });
     
-    // Deactivate all buttons & reset aria-selected
+    // Deactivate all buttons & reset aria-selected / tabindex / text colors
     document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.classList.remove('border-blue-500');
-        btn.classList.add('border-transparent');
+        btn.classList.remove('border-blue-500', 'text-white');
+        btn.classList.add('border-transparent', 'text-gray-400');
         btn.setAttribute('aria-selected', 'false');
+        btn.setAttribute('tabindex', '-1');
     });
     
     // Show selected tab
@@ -23,9 +24,10 @@ function showTab(tabName) {
     // Activate matching button
     const activeBtn = document.getElementById(`tab-${tabName}`);
     if (activeBtn) {
-        activeBtn.classList.add('border-blue-500');
-        activeBtn.classList.remove('border-transparent');
+        activeBtn.classList.add('border-blue-500', 'text-white');
+        activeBtn.classList.remove('border-transparent', 'text-gray-400');
         activeBtn.setAttribute('aria-selected', 'true');
+        activeBtn.setAttribute('tabindex', '0');
     }
     
     // Load data
@@ -33,6 +35,35 @@ function showTab(tabName) {
     else if (tabName === 'memory') loadMemory();
     else if (tabName === 'skills') loadSkills();
     else if (tabName === 'logs') loadLogs();
+}
+
+function initTabNavigation() {
+    const tablist = document.querySelector('[role="tablist"]');
+    if (!tablist) return;
+
+    tablist.addEventListener('keydown', (e) => {
+        const tabs = Array.from(tablist.querySelectorAll('[role="tab"]'));
+        const currentIndex = tabs.indexOf(document.activeElement);
+        if (currentIndex === -1) return;
+
+        let targetIndex;
+        if (e.key === 'ArrowRight') {
+            targetIndex = (currentIndex + 1) % tabs.length;
+        } else if (e.key === 'ArrowLeft') {
+            targetIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+        } else if (e.key === 'Home') {
+            targetIndex = 0;
+        } else if (e.key === 'End') {
+            targetIndex = tabs.length - 1;
+        } else {
+            return;
+        }
+
+        e.preventDefault();
+        const targetTab = tabs[targetIndex];
+        targetTab.focus();
+        targetTab.click();
+    });
 }
 
 // Load Sessions
@@ -181,6 +212,7 @@ async function checkStatus() {
 
 // Initialize on load
 document.addEventListener('DOMContentLoaded', () => {
+    initTabNavigation();
     checkStatus();
     setInterval(checkStatus, 30000); // Check every 30 seconds
     loadSessions();
