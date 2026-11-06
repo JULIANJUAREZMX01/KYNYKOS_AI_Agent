@@ -44,6 +44,59 @@ async def test_read_file_not_found(tool_executor, agent_context):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "invalid_target",
+    [
+        "-t",
+        "--help",
+        "-c 5 127.0.0.1",
+        "127.0.0.1; rm -rf /",
+        "127.0.0.1 & id",
+        "127.0.0.1 | whoami",
+        "127.0.0.1`id`",
+        "$(whoami)",
+        "google.com -c 1",
+        "bad target with spaces",
+    ],
+)
+async def test_network_scan_rejects_argument_injection(tool_executor, agent_context, mocker, invalid_target):
+    """Ensure network_scan blocks command option injection and malformed targets."""
+    mock_run = mocker.patch("subprocess.run")
+    result = await tool_executor.execute(
+        "network_scan",
+        {"target": invalid_target},
+        agent_context
+    )
+    assert "Objetivo inválido" in result
+    mock_run.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "valid_target",
+    [
+        "127.0.0.1",
+        "::1",
+        "localhost",
+        "google.com",
+        "sub.domain-example.com",
+    ],
+)
+async def test_network_scan_allows_valid_targets(tool_executor, agent_context, mocker, valid_target):
+    """Ensure network_scan accepts valid IPs and hostnames."""
+    mock_run = mocker.patch("subprocess.run")
+    mock_run.return_value.returncode = 0
+    mock_run.return_value.stdout = "OK"
+    result = await tool_executor.execute(
+        "network_scan",
+        {"target": valid_target},
+        agent_context
+    )
+    assert "ONLINE" in result
+    mock_run.assert_called_once_with(["ping", "-n", "1", valid_target], shell=False, capture_output=True, text=True)
+
+
+@pytest.mark.asyncio
 async def test_execute_shell_legitimate_simple_command(tool_executor, agent_context):
     """Test that a simple legitimate command continues to work without shell"""
     result = await tool_executor.execute(
