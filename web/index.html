@@ -32,16 +32,16 @@
         <main class="flex-1 max-w-6xl mx-auto w-full py-8 px-6">
             <!-- Tabs -->
             <div role="tablist" aria-label="Navegación del panel" class="flex gap-4 mb-6 border-b border-gray-700">
-                <button id="tab-sessions" role="tab" aria-selected="true" aria-controls="sessions-tab" onclick="showTab('sessions')" class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-blue-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 rounded-t">
+                <button id="tab-sessions" role="tab" aria-selected="true" tabindex="0" aria-controls="sessions-tab" onclick="showTab('sessions')" class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-blue-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 rounded-t transition-colors">
                     📋 Sesiones
                 </button>
-                <button id="tab-memory" role="tab" aria-selected="false" aria-controls="memory-tab" onclick="showTab('memory')" class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:border-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 rounded-t">
+                <button id="tab-memory" role="tab" aria-selected="false" tabindex="-1" aria-controls="memory-tab" onclick="showTab('memory')" class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:border-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 rounded-t transition-colors">
                     💾 Memoria
                 </button>
-                <button id="tab-skills" role="tab" aria-selected="false" aria-controls="skills-tab" onclick="showTab('skills')" class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:border-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 rounded-t">
+                <button id="tab-skills" role="tab" aria-selected="false" tabindex="-1" aria-controls="skills-tab" onclick="showTab('skills')" class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:border-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 rounded-t transition-colors">
                     🛠️ Skills
                 </button>
-                <button id="tab-logs" role="tab" aria-selected="false" aria-controls="logs-tab" onclick="showTab('logs')" class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:border-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 rounded-t">
+                <button id="tab-logs" role="tab" aria-selected="false" tabindex="-1" aria-controls="logs-tab" onclick="showTab('logs')" class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:border-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 rounded-t transition-colors">
                     📝 Logs
                 </button>
             </div>
