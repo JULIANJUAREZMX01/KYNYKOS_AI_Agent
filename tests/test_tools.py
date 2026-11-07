@@ -97,6 +97,63 @@ async def test_network_scan_allows_valid_targets(tool_executor, agent_context, m
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "invalid_filter",
+    [
+        "/s evil_server",
+        "-t",
+        "/F",
+        "/PID 1234",
+        "notepad.exe /t",
+        "calc.exe && whoami",
+        "chrome; echo pwned",
+        "process with spaces",
+        "-f",
+    ],
+)
+async def test_manage_processes_rejects_argument_injection(tool_executor, agent_context, mocker, invalid_filter):
+    """Ensure manage_processes blocks command switches and invalid characters for kill action."""
+    mock_run = mocker.patch("subprocess.run")
+    result = await tool_executor.execute(
+        "manage_processes",
+        {"action": "kill", "name": invalid_filter},
+        agent_context
+    )
+    assert "inválido" in result
+    mock_run.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_manage_processes_allows_valid_pid(tool_executor, agent_context, mocker):
+    """Ensure manage_processes allows numeric PID."""
+    mock_run = mocker.patch("subprocess.run")
+    mock_run.return_value.returncode = 0
+    mock_run.return_value.stderr = ""
+    result = await tool_executor.execute(
+        "manage_processes",
+        {"action": "kill", "name": "1234"},
+        agent_context
+    )
+    assert "terminado por orden superior" in result
+    mock_run.assert_called_once_with(["taskkill", "/F", "/PID", "1234"], shell=False, capture_output=True, text=True)
+
+
+@pytest.mark.asyncio
+async def test_manage_processes_allows_valid_image_name(tool_executor, agent_context, mocker):
+    """Ensure manage_processes allows valid process image names."""
+    mock_run = mocker.patch("subprocess.run")
+    mock_run.return_value.returncode = 0
+    mock_run.return_value.stderr = ""
+    result = await tool_executor.execute(
+        "manage_processes",
+        {"action": "kill", "name": "notepad.exe"},
+        agent_context
+    )
+    assert "terminado por orden superior" in result
+    mock_run.assert_called_once_with(["taskkill", "/F", "/IM", "notepad.exe*"], shell=False, capture_output=True, text=True)
+
+
+@pytest.mark.asyncio
 async def test_execute_shell_legitimate_simple_command(tool_executor, agent_context):
     """Test that a simple legitimate command continues to work without shell"""
     result = await tool_executor.execute(
