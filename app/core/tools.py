@@ -746,12 +746,20 @@ class ToolExecutor:
             elif action == "kill":
                 if not filter_name:
                     return "❌ Necesito el nombre o ID del proceso para terminarlo."
-                
+
+                # Security: prevent argument/switch injection into taskkill.
+                # Disallow flags (- or /), spaces, or metacharacters.
+                if filter_name.startswith(("-", "/")) or any(c.isspace() for c in filter_name):
+                    return f"❌ Nombre o ID de proceso inválido: '{filter_name}'."
+
                 # Use taskkill for force
-                if not filter_name.isdigit():
-                    cmd = ["taskkill", "/F", "/IM", f"{filter_name}*"]
-                else:
+                if filter_name.isdigit():
                     cmd = ["taskkill", "/F", "/PID", filter_name]
+                else:
+                    # Validate image name: alphanumeric, dots, underscores, hyphens only
+                    if not re.match(r"^[a-zA-Z0-9_.-]+$", filter_name):
+                        return f"❌ Nombre o ID de proceso inválido: '{filter_name}'."
+                    cmd = ["taskkill", "/F", "/IM", f"{filter_name}*"]
 
                 result = await asyncio.to_thread(subprocess.run, cmd, shell=False, capture_output=True, text=True)
                 
