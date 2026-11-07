@@ -1,4 +1,3 @@
-import pytest
 from app.skills.mueve_cancun import (
     is_transport_query,
     get_route_info,
@@ -16,6 +15,9 @@ def test_is_transport_query():
     assert is_transport_query("¿Cómo llego a la zona hotelera?") is True
     assert is_transport_query("hola, ¿cómo estás?") is False
     assert is_transport_query("comprar comida") is False
+    assert is_transport_query("Ruta R1") is True
+    assert is_transport_query("moverse por la ciudad") is True
+    assert is_transport_query("") is False
 
 def test_get_route_info():
     """Test get_route_info returns correct route info or None."""
