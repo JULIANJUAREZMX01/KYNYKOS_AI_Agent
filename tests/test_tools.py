@@ -45,6 +45,77 @@ async def test_read_file_not_found(tool_executor, agent_context):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
+    "operation",
+    [
+        "clone https://github.com/evil/repo.git",
+        "push origin main",
+        "config user.name evil",
+        "reset --hard HEAD~1",
+        "init /tmp/repo",
+        "clean -fdx",
+        "checkout -b feature",
+        "remote add evil https://evil.com",
+        "evil_command status",
+        "status_check",
+    ],
+)
+async def test_git_operation_rejects_disallowed_subcommands(tool_executor, operation):
+    """Ensure git_operation rejects subcommands not in the whitelist"""
+    result = await tool_executor.execute("git_operation", {"operation": operation}, None)
+    assert "Operación git no permitida" in result
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "operation",
+    [
+        "status -c core.editor=calc.exe",
+        "status -c core.fsmonitor=evil.bat",
+        "log --upload-pack=evil",
+        "pull --upload-pack=touch /tmp/pwned",
+        "status --exec-path=/tmp",
+        "status --config-env=foo=bar",
+        "log --output=/tmp/evil.txt",
+    ],
+)
+async def test_git_operation_rejects_dangerous_flags(tool_executor, operation):
+    """Ensure git_operation rejects dangerous flags and options"""
+    result = await tool_executor.execute("git_operation", {"operation": operation}, None)
+    assert "no permitido en operación git" in result
+
+
+@pytest.mark.asyncio
+async def test_git_operation_rejects_unsafe_repo_path(tool_executor):
+    """Ensure git_operation rejects repo_path outside safe directories"""
+    result = await tool_executor.execute(
+        "git_operation",
+        {"operation": "status", "repo_path": "/etc"},
+        None,
+    )
+    assert "Acceso denegado: ruta de repositorio no permitida" in result
+
+
+@pytest.mark.asyncio
+async def test_git_operation_allows_whitelisted_commands(tool_executor, mocker):
+    """Ensure whitelisted git subcommands are executed safely with subprocess.run"""
+    mock_run = mocker.patch("subprocess.run")
+    mock_run.return_value = mocker.MagicMock(returncode=0, stdout="On branch main\n", stderr="")
+
+    result = await tool_executor.execute(
+        "git_operation",
+        {"operation": "status", "repo_path": str(tool_executor.workspace_path)},
+        None,
+    )
+    assert "On branch main" in result
+    mock_run.assert_called_once()
+    args, kwargs = mock_run.call_args
+    assert args[0] == ["git", "status"]
+    assert kwargs["shell"] is False
+    assert kwargs["cwd"] == str(tool_executor.workspace_path)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
     "invalid_target",
     [
         "-t",
