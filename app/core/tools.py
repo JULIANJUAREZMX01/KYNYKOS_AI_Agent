@@ -301,16 +301,35 @@ class ToolExecutor:
         if not operation:
             return "❌ Operación vacía"
 
-        # Only allow safe git operations
-        safe_ops = ["status", "log", "branch", "diff", "show", "pull", "add", "commit"]
-        if not any(op in operation.lower() for op in safe_ops):
-            return "❌ Operación git no permitida"
+        # Validate repo_path against safe directories
+        path_obj = Path(repo_path)
+        if not self._is_safe_path(path_obj):
+            return f"❌ Acceso denegado: ruta de repositorio no permitida: '{repo_path}'"
+
+        try:
+            # Safely split the operation into arguments
+            git_args = shlex.split(operation)
+        except ValueError as e:
+            return f"❌ Error de sintaxis en comando git: {str(e)}"
+
+        if not git_args:
+            return "❌ Operación vacía"
+
+        # Security: git subcommand MUST be first token and in explicit whitelist
+        subcommand = git_args[0].lower()
+        safe_subcommands = {"status", "log", "branch", "diff", "show", "pull", "add", "commit"}
+        if subcommand not in safe_subcommands:
+            return f"❌ Operación git no permitida: '{subcommand}'"
+
+        # Disallow dangerous flags that can execute commands, upload/receive packs, or change config
+        forbidden_flags = {"--upload-pack", "--receive-pack", "--exec-path", "-c", "--config-env", "--output"}
+        for arg in git_args[1:]:
+            lower_arg = arg.lower()
+            if any(lower_arg == f or lower_arg.startswith(f + "=") for f in forbidden_flags):
+                return f"❌ Opción o argumento no permitido en operación git: '{arg}'"
 
         try:
             logger.info(f"Git: {operation}")
-
-            # Safely split the operation into arguments
-            git_args = shlex.split(operation)
             cmd = ["git"] + git_args
 
             result = await asyncio.to_thread(
