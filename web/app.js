@@ -9,23 +9,25 @@ function showTab(tabName) {
         tab.classList.add('hidden');
     });
     
-    // Deactivate all buttons & reset aria-selected
+    // Deactivate all buttons, reset aria-selected and roving tabIndex
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.classList.remove('border-blue-500');
         btn.classList.add('border-transparent');
         btn.setAttribute('aria-selected', 'false');
+        btn.setAttribute('tabindex', '-1');
     });
     
     // Show selected tab
     const targetTab = document.getElementById(`${tabName}-tab`);
     if (targetTab) targetTab.classList.remove('hidden');
     
-    // Activate matching button
+    // Activate matching button and set active tabIndex
     const activeBtn = document.getElementById(`tab-${tabName}`);
     if (activeBtn) {
         activeBtn.classList.add('border-blue-500');
         activeBtn.classList.remove('border-transparent');
         activeBtn.setAttribute('aria-selected', 'true');
+        activeBtn.setAttribute('tabindex', '0');
     }
     
     // Load data
@@ -35,8 +37,44 @@ function showTab(tabName) {
     else if (tabName === 'logs') loadLogs();
 }
 
+// Keyboard navigation for WAI-ARIA tablist (ArrowLeft, ArrowRight, Home, End)
+function initTablistKeyNavigation() {
+    const tablist = document.querySelector('[role="tablist"]');
+    if (!tablist) return;
+
+    tablist.addEventListener('keydown', (e) => {
+        const tabs = Array.from(tablist.querySelectorAll('[role="tab"]'));
+        const currentIndex = tabs.indexOf(document.activeElement);
+        if (currentIndex === -1) return;
+
+        let newIndex = null;
+        if (e.key === 'ArrowRight') {
+            newIndex = (currentIndex + 1) % tabs.length;
+        } else if (e.key === 'ArrowLeft') {
+            newIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+        } else if (e.key === 'Home') {
+            newIndex = 0;
+        } else if (e.key === 'End') {
+            newIndex = tabs.length - 1;
+        }
+
+        if (newIndex !== null) {
+            e.preventDefault();
+            const targetTab = tabs[newIndex];
+            targetTab.focus();
+            targetTab.click();
+        }
+    });
+}
+
 // Load Sessions
 async function loadSessions() {
+    const refreshBtn = document.getElementById('refresh-sessions-btn');
+    if (refreshBtn) {
+        refreshBtn.disabled = true;
+        refreshBtn.textContent = '⏳ Cargando...';
+    }
+
     try {
         const response = await fetch(`${API_BASE}/sessions`);
         const sessions = await response.json();
@@ -56,6 +94,11 @@ async function loadSessions() {
     } catch (error) {
         console.error('Error loading sessions:', error);
         document.getElementById('sessions-list').innerHTML = '<p class="text-red-400">Error cargando sesiones</p>';
+    } finally {
+        if (refreshBtn) {
+            refreshBtn.disabled = false;
+            refreshBtn.textContent = '🔄 Actualizar';
+        }
     }
 }
 
@@ -181,6 +224,7 @@ async function checkStatus() {
 
 // Initialize on load
 document.addEventListener('DOMContentLoaded', () => {
+    initTablistKeyNavigation();
     checkStatus();
     setInterval(checkStatus, 30000); // Check every 30 seconds
     loadSessions();
