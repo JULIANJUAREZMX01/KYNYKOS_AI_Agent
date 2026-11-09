@@ -44,6 +44,67 @@ async def test_read_file_not_found(tool_executor, agent_context):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("invalid_operation", [
+    "-c core.editor=evil status",
+    "--exec-path=/tmp status",
+    "--upload-pack=calc.exe status",
+    "checkout main",
+    "push origin main",
+    "reset --hard",
+    "config user.name test",
+    "status -c diff.external=evil",
+    "status --upload-pack=evil",
+])
+async def test_git_operation_rejects_argument_injection_and_unauthorized_commands(tool_executor, agent_context, mocker, invalid_operation):
+    """Test that git_operation rejects dangerous options and unauthorized subcommands."""
+    mock_run = mocker.patch("subprocess.run")
+    result = await tool_executor.execute(
+        "git_operation",
+        {"operation": invalid_operation, "repo_path": str(tool_executor.workspace_path)},
+        agent_context
+    )
+    assert "❌" in result
+    mock_run.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_git_operation_rejects_unsafe_repo_path(tool_executor, agent_context, mocker):
+    """Test that git_operation rejects paths outside safe directories."""
+    mock_run = mocker.patch("subprocess.run")
+    result = await tool_executor.execute(
+        "git_operation",
+        {"operation": "status", "repo_path": "/etc"},
+        agent_context
+    )
+    assert "Acceso denegado" in result
+    mock_run.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_git_operation_allows_valid_subcommand(tool_executor, agent_context, mocker):
+    """Test that git_operation allows valid git subcommands in safe paths."""
+    mock_run = mocker.patch("subprocess.run")
+    mock_run.return_value.returncode = 0
+    mock_run.return_value.stdout = "On branch main\nnothing to commit"
+    mock_run.return_value.stderr = ""
+
+    result = await tool_executor.execute(
+        "git_operation",
+        {"operation": "status -s", "repo_path": str(tool_executor.workspace_path)},
+        agent_context
+    )
+    assert "On branch main" in result
+    mock_run.assert_called_once_with(
+        ["git", "status", "-s"],
+        shell=False,
+        cwd=str(tool_executor.workspace_path),
+        capture_output=True,
+        text=True,
+        timeout=30
+    )
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "invalid_target",
     [
