@@ -301,16 +301,35 @@ class ToolExecutor:
         if not operation:
             return "❌ Operación vacía"
 
-        # Only allow safe git operations
-        safe_ops = ["status", "log", "branch", "diff", "show", "pull", "add", "commit"]
-        if not any(op in operation.lower() for op in safe_ops):
-            return "❌ Operación git no permitida"
+        # Path traversal check: ensure repo_path is within allowed directories
+        path_obj = Path(repo_path)
+        if not self._is_safe_path(path_obj):
+            return "❌ Acceso denegado: ruta de repositorio fuera de los directorios permitidos"
+
+        try:
+            # Safely split the operation into arguments
+            git_args = shlex.split(operation)
+        except ValueError as e:
+            return f"❌ Error de sintaxis en comando git: {str(e)}"
+
+        if not git_args:
+            return "❌ Operación vacía"
+
+        # Only allow safe git subcommands as the primary operation
+        safe_ops = {"status", "log", "branch", "diff", "show", "pull", "add", "commit"}
+        subcommand = git_args[0].lower()
+        if subcommand not in safe_ops:
+            return f"❌ Operación git no permitida: '{subcommand}'"
+
+        # Block dangerous git flags that can execute commands or alter configurations
+        dangerous_flags = {"-c", "--exec-path", "--upload-pack", "--receive-pack", "--config-env"}
+        for arg in git_args[1:]:
+            arg_lower = arg.lower()
+            if any(arg_lower == flag or arg_lower.startswith(f"{flag}=") for flag in dangerous_flags):
+                return f"❌ Parámetro git peligroso bloqueado: '{arg}'"
 
         try:
             logger.info(f"Git: {operation}")
-
-            # Safely split the operation into arguments
-            git_args = shlex.split(operation)
             cmd = ["git"] + git_args
 
             result = await asyncio.to_thread(
