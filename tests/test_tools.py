@@ -154,6 +154,81 @@ async def test_manage_processes_allows_valid_image_name(tool_executor, agent_con
 
 
 @pytest.mark.asyncio
+async def test_git_operation_allows_valid_subcommand(tool_executor, agent_context, tmp_path, mocker):
+    """Ensure git_operation allows approved git subcommands inside workspace."""
+    mock_run = mocker.patch("subprocess.run")
+    mock_run.return_value.returncode = 0
+    mock_run.return_value.stdout = "On branch main"
+    mock_run.return_value.stderr = ""
+
+    result = await tool_executor.execute(
+        "git_operation",
+        {"operation": "status", "repo_path": str(tmp_path)},
+        agent_context
+    )
+    assert "On branch main" in result
+    mock_run.assert_called_once_with(
+        ["git", "status"],
+        shell=False,
+        cwd=str(tmp_path.resolve()),
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+
+@pytest.mark.asyncio
+async def test_git_operation_rejects_unauthorized_subcommand(tool_executor, agent_context, tmp_path, mocker):
+    """Ensure git_operation rejects unauthorized subcommands like push, clone, config."""
+    mock_run = mocker.patch("subprocess.run")
+    result = await tool_executor.execute(
+        "git_operation",
+        {"operation": "push origin main", "repo_path": str(tmp_path)},
+        agent_context
+    )
+    assert "no permitida" in result
+    mock_run.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "dangerous_op",
+    [
+        "pull --upload-pack='id'",
+        "pull --upload-pack=touch /tmp/pwned origin main",
+        "status -c alias.status=!id",
+        "status --config core.editor=calc",
+        "log --output=/tmp/evil",
+        "diff --exec-path=/tmp",
+        "add --receive-pack=id",
+    ],
+)
+async def test_git_operation_rejects_dangerous_flags(tool_executor, agent_context, tmp_path, mocker, dangerous_op):
+    """Ensure git_operation blocks dangerous options capable of arbitrary code execution."""
+    mock_run = mocker.patch("subprocess.run")
+    result = await tool_executor.execute(
+        "git_operation",
+        {"operation": dangerous_op, "repo_path": str(tmp_path)},
+        agent_context
+    )
+    assert "peligroso bloqueado" in result
+    mock_run.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_git_operation_rejects_path_traversal(tool_executor, agent_context, mocker):
+    """Ensure git_operation blocks repo_path pointing outside safe base paths."""
+    mock_run = mocker.patch("subprocess.run")
+    result = await tool_executor.execute(
+        "git_operation",
+        {"operation": "status", "repo_path": "/etc"},
+        agent_context
+    )
+    assert "Acceso denegado" in result
+    mock_run.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_execute_shell_legitimate_simple_command(tool_executor, agent_context):
     """Test that a simple legitimate command continues to work without shell"""
     result = await tool_executor.execute(

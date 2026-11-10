@@ -83,7 +83,7 @@ class ToolExecutor:
                 "backup_to_cloud", "intelligent_search", "rebuild_index",
                 "web_search", "render_api_query", "muevecancun_listener",
                 "system_speak", "calculate", "get_datetime",
-                "git_operation", "search_code", "system_control",
+                "search_code", "system_control",
                 "manage_processes", "self_repair", "translate_text",
             }
             # Handlers that take no arguments at all
@@ -293,7 +293,7 @@ class ToolExecutor:
         except Exception as e:
             return f"❌ Error listando {directory}: {str(e)}"
 
-    async def _git_operation(self, args: Dict[str, Any]) -> str:
+    async def _git_operation(self, args: Dict[str, Any], ctx: Optional[AgentContext] = None) -> str:
         """Execute git operation safely"""
         operation = args.get("operation", "").strip()
         repo_path = args.get("repo_path", "C:/Users/QUINTANA/sistemas").strip()
@@ -301,23 +301,46 @@ class ToolExecutor:
         if not operation:
             return "❌ Operación vacía"
 
-        # Only allow safe git operations
-        safe_ops = ["status", "log", "branch", "diff", "show", "pull", "add", "commit"]
-        if not any(op in operation.lower() for op in safe_ops):
-            return "❌ Operación git no permitida"
+        # Security: validate repository path to prevent path traversal
+        try:
+            target_path = Path(repo_path).resolve()
+            if not self._is_safe_path(target_path, ctx):
+                return "❌ Acceso denegado: repositorio fuera de directorio permitido"
+            if not target_path.exists() or not target_path.is_dir():
+                return f"❌ Repositorio no encontrado: {repo_path}"
+        except Exception as e:
+            return f"❌ Ruta de repositorio inválida: {str(e)}"
+
+        try:
+            git_args = shlex.split(operation)
+        except ValueError as e:
+            return f"❌ Error de sintaxis en operación: {str(e)}"
+
+        if not git_args:
+            return "❌ Operación vacía"
+
+        # Only allow whitelisted git subcommands as primary command
+        safe_subcommands = {"status", "log", "branch", "diff", "show", "pull", "add", "commit"}
+        subcommand = git_args[0].lower()
+        if subcommand not in safe_subcommands:
+            return f"❌ Operación git no permitida: '{subcommand}'"
+
+        # Security: disallow flags that could execute arbitrary commands or modify configs
+        dangerous_flags = ("--upload-pack", "--receive-pack", "--exec-path", "--config", "-c", "--output")
+        for arg in git_args[1:]:
+            arg_lower = arg.lower()
+            if any(arg_lower == flag or arg_lower.startswith(f"{flag}=") for flag in dangerous_flags):
+                return f"❌ Argumento peligroso bloqueado: '{arg}'"
 
         try:
             logger.info(f"Git: {operation}")
-
-            # Safely split the operation into arguments
-            git_args = shlex.split(operation)
             cmd = ["git"] + git_args
 
             result = await asyncio.to_thread(
                 subprocess.run,
                 cmd,
                 shell=False,
-                cwd=repo_path,
+                cwd=str(target_path),
                 capture_output=True,
                 text=True,
                 timeout=30,
