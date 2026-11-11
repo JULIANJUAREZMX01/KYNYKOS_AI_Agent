@@ -1,0 +1,5 @@
+# Bolt's Journal — Critical Learnings Only
+
+## 2026-11-08 - O(1) Tail-Seeking for JSONL Session Parsing
+**Learning:** In session management and dashboard log viewers, session contexts are stored as JSONL append-only files where each line represents a full serialized state. Reading the entire file via `read_text().split('\n')` or `readlines()` forces full file loading and string allocations across all historical turns (O(N) time and memory). Seeking backwards in chunks from EOF to find the last newline enables reading only the latest session state in O(1) time and memory. Critically, backwards-chunked seeking MUST accumulate chunks until a preceding newline is located or the start of the file is reached (`remaining == 0`); returning on the first non-empty segment truncates lines that are larger than the chunk buffer size (common in LLM context dumps).
+**Action:** When inspecting state from append-only logs (.jsonl), use backwards file-seeking rather than full file reading or splitting, and ensure boundary conditions check for a preceding newline delimiter or EOF/BOF boundaries.
