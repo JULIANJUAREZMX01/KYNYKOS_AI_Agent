@@ -1,12 +1,55 @@
 """Dashboard API routes for Nanobot"""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from pathlib import Path
 import json
 import os
 from app.utils import get_logger
 
 logger = get_logger(__name__)
+
+
+def _read_last_line_from_file(file_path: Path, buffer_size: int = 4096) -> str:
+    """
+    ⚡ Bolt Optimization: Read only the last non-empty line of a file by seeking backwards
+    from the end of the file in chunks, instead of reading the entire file into memory
+    and splitting strings. Correctly handles lines larger than buffer_size by ensuring
+    a preceding newline is found or the beginning of the file is reached.
+    """
+    with open(file_path, "rb") as f:
+        f.seek(0, os.SEEK_END)
+        file_size = f.tell()
+        if file_size == 0:
+            return ""
+
+        remaining = file_size
+        buffer = b""
+        while remaining > 0:
+            read_size = min(buffer_size, remaining)
+            remaining -= read_size
+            f.seek(remaining)
+            chunk = f.read(read_size)
+            buffer = chunk + buffer
+
+            # Strip trailing newlines/spaces from the end of the buffer
+            # to avoid false empty segments at EOF
+            trimmed = buffer.rstrip(b"\r\n")
+            if not trimmed:
+                continue
+
+            last_newline_idx = trimmed.rfind(b"\n")
+            if last_newline_idx != -1:
+                # Preceding newline found: the line after it is complete
+                last_line = trimmed[last_newline_idx + 1:].strip()
+                if last_line:
+                    return last_line.decode("utf-8", errors="replace")
+            elif remaining == 0:
+                # Reached the start of the file without preceding newline
+                last_line = trimmed.strip()
+                if last_line:
+                    return last_line.decode("utf-8", errors="replace")
+
+    return ""
 
 
 def create_dashboard_routes() -> APIRouter:
@@ -25,13 +68,14 @@ def create_dashboard_routes() -> APIRouter:
         # Check for both .json and .jsonl
         for session_file in list(sessions_dir.glob("*.json")) + list(sessions_dir.glob("*.jsonl")):
             try:
-                # If it's a small JSON file, read it directly
-                content = session_file.read_text(encoding="utf-8")
                 if session_file.suffix == ".jsonl":
-                    # Read the last line of JSONL for current state
-                    lines = content.strip().split('\n')
-                    data = json.loads(lines[-1])
+                    # ⚡ Bolt Optimization: Read only the last line instead of slurp + split
+                    last_line = _read_last_line_from_file(session_file)
+                    if not last_line:
+                        continue
+                    data = json.loads(last_line)
                 else:
+                    content = session_file.read_text(encoding="utf-8")
                     data = json.loads(content)
                 
                 # Add file info
