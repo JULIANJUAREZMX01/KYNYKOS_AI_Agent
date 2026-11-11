@@ -9,23 +9,25 @@ function showTab(tabName) {
         tab.classList.add('hidden');
     });
     
-    // Deactivate all buttons & reset aria-selected
+    // Deactivate all buttons & reset aria-selected and tabindex
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.classList.remove('border-blue-500');
         btn.classList.add('border-transparent');
         btn.setAttribute('aria-selected', 'false');
+        btn.setAttribute('tabindex', '-1');
     });
     
     // Show selected tab
     const targetTab = document.getElementById(`${tabName}-tab`);
     if (targetTab) targetTab.classList.remove('hidden');
     
-    // Activate matching button
+    // Activate matching button with roving tabindex
     const activeBtn = document.getElementById(`tab-${tabName}`);
     if (activeBtn) {
         activeBtn.classList.add('border-blue-500');
         activeBtn.classList.remove('border-transparent');
         activeBtn.setAttribute('aria-selected', 'true');
+        activeBtn.setAttribute('tabindex', '0');
     }
     
     // Load data
@@ -33,6 +35,35 @@ function showTab(tabName) {
     else if (tabName === 'memory') loadMemory();
     else if (tabName === 'skills') loadSkills();
     else if (tabName === 'logs') loadLogs();
+}
+
+function initTabKeyboardNavigation() {
+    const tablist = document.querySelector('[role="tablist"]');
+    if (!tablist) return;
+
+    tablist.addEventListener('keydown', (e) => {
+        const tabs = Array.from(tablist.querySelectorAll('[role="tab"]'));
+        const currentIndex = tabs.indexOf(document.activeElement);
+        if (currentIndex === -1) return;
+
+        let targetIndex = -1;
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+            targetIndex = (currentIndex + 1) % tabs.length;
+        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+            targetIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+        } else if (e.key === 'Home') {
+            targetIndex = 0;
+        } else if (e.key === 'End') {
+            targetIndex = tabs.length - 1;
+        }
+
+        if (targetIndex !== -1) {
+            e.preventDefault();
+            const targetBtn = tabs[targetIndex];
+            targetBtn.focus();
+            targetBtn.click();
+        }
+    });
 }
 
 // Load Sessions
@@ -181,6 +212,7 @@ async function checkStatus() {
 
 // Initialize on load
 document.addEventListener('DOMContentLoaded', () => {
+    initTabKeyboardNavigation();
     checkStatus();
     setInterval(checkStatus, 30000); // Check every 30 seconds
     loadSessions();
