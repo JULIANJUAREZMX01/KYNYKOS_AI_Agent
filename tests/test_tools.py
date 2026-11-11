@@ -269,6 +269,85 @@ async def test_system_control_uses_subprocess_run(tool_executor, mocker):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "operation,expected_cmd",
+    [
+        ("status", ["git", "status"]),
+        ("log -n 5 --oneline", ["git", "log", "-n", "5", "--oneline"]),
+        ("branch -a", ["git", "branch", "-a"]),
+        ("diff HEAD~1", ["git", "diff", "HEAD~1"]),
+        ("show HEAD", ["git", "show", "HEAD"]),
+        ("pull origin main", ["git", "pull", "origin", "main"]),
+        ("add .", ["git", "add", "."]),
+        ("commit -m 'test commit'", ["git", "commit", "-m", "test commit"]),
+    ],
+)
+async def test_git_operation_allowed_commands(tool_executor, agent_context, mocker, operation, expected_cmd):
+    """Ensure legitimate git operations are allowed and dispatched safely with shell=False."""
+    mock_run = mocker.patch("subprocess.run")
+    mock_run.return_value.returncode = 0
+    mock_run.return_value.stdout = "git success"
+    mock_run.return_value.stderr = ""
+
+    result = await tool_executor.execute(
+        "git_operation",
+        {"operation": operation, "repo_path": str(tool_executor.workspace_path)},
+        agent_context
+    )
+    assert result == "git success"
+    mock_run.assert_called_once_with(
+        expected_cmd,
+        shell=False,
+        cwd=str(tool_executor.workspace_path.resolve()),
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "bad_operation",
+    [
+        "-c core.fsmonitor=evil status",
+        "--exec-path=/tmp status",
+        "--upload-pack=evil status",
+        "status --upload-pack=evil",
+        "fetch --upload-pack=calc.exe",
+        "clone https://example.com/repo",
+        "push origin main",
+        "config --global user.name evil",
+        "checkout -b feature",
+    ],
+)
+async def test_git_operation_rejects_dangerous_and_unauthorized_commands(tool_executor, agent_context, mocker, bad_operation):
+    """Ensure git_operation rejects dangerous options, subcommand injection, and unauthorized subcommands."""
+    mock_run = mocker.patch("subprocess.run")
+
+    result = await tool_executor.execute(
+        "git_operation",
+        {"operation": bad_operation, "repo_path": str(tool_executor.workspace_path)},
+        agent_context
+    )
+    assert "❌" in result
+    mock_run.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_git_operation_rejects_unsafe_repo_path(tool_executor, agent_context, mocker):
+    """Ensure git_operation rejects repository paths outside safe directories."""
+    mock_run = mocker.patch("subprocess.run")
+
+    result = await tool_executor.execute(
+        "git_operation",
+        {"operation": "status", "repo_path": "/etc/shadow"},
+        agent_context
+    )
+    assert "Acceso denegado: ruta de repositorio fuera de directorios permitidos" in result
+    mock_run.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_write_and_read_file(tool_executor, agent_context, tmp_path):
     """Test writing and reading a file"""
     # Write file

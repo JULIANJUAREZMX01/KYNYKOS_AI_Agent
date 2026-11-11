@@ -296,28 +296,46 @@ class ToolExecutor:
     async def _git_operation(self, args: Dict[str, Any]) -> str:
         """Execute git operation safely"""
         operation = args.get("operation", "").strip()
-        repo_path = args.get("repo_path", "C:/Users/QUINTANA/sistemas").strip()
+        repo_path_str = args.get("repo_path", "C:/Users/QUINTANA/sistemas").strip()
 
         if not operation:
             return "❌ Operación vacía"
 
-        # Only allow safe git operations
-        safe_ops = ["status", "log", "branch", "diff", "show", "pull", "add", "commit"]
-        if not any(op in operation.lower() for op in safe_ops):
-            return "❌ Operación git no permitida"
+        # Security: validate repository path is within safe directories
+        repo_path = Path(repo_path_str)
+        if not self._is_safe_path(repo_path):
+            return "❌ Acceso denegado: ruta de repositorio fuera de directorios permitidos"
+
+        try:
+            # Safely split the operation into arguments
+            git_args = shlex.split(operation)
+        except ValueError as e:
+            return f"❌ Error de sintaxis en operación git: {e}"
+
+        if not git_args:
+            return "❌ Operación vacía"
+
+        # Security: ensure primary subcommand is explicitly allowed
+        subcommand = git_args[0].lower()
+        allowed_subcommands = {"status", "log", "branch", "diff", "show", "pull", "add", "commit"}
+        if subcommand not in allowed_subcommands:
+            return f"❌ Operación git no permitida: '{subcommand}'"
+
+        # Security: block dangerous git options that allow command execution or option injection
+        dangerous_flags = ("-c", "--config-env", "--upload-pack", "--receive-pack", "--exec-path")
+        for arg in git_args:
+            if arg.startswith(dangerous_flags) or any(arg.startswith(f"{f}=") for f in dangerous_flags):
+                return "❌ Opción de git peligrosa bloqueada"
 
         try:
             logger.info(f"Git: {operation}")
-
-            # Safely split the operation into arguments
-            git_args = shlex.split(operation)
             cmd = ["git"] + git_args
 
             result = await asyncio.to_thread(
                 subprocess.run,
                 cmd,
                 shell=False,
-                cwd=repo_path,
+                cwd=str(repo_path.resolve()),
                 capture_output=True,
                 text=True,
                 timeout=30,
